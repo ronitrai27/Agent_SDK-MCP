@@ -1,0 +1,22 @@
+{
+  "name": "rox",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@openai/agents": "^0.3.4",
+    "dotenv": "^17.2.3",
+    "openai": "^6.10.0",
+    "tsx": "^4.21.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "shadcn": "^3.5.2"
+  }
+}
