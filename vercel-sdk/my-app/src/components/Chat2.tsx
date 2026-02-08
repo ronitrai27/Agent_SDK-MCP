@@ -117,7 +117,7 @@ export function Chat2() {
       </Conversation>
 
       <div className="border-t p-4 w-full">
-        <Suggestions>
+        {/* <Suggestions>
           {suggestions.map((suggestion) => (
             <Suggestion
               key={suggestion}
@@ -125,7 +125,7 @@ export function Chat2() {
               onClick={handleSuggestionClick}
             />
           ))}
-        </Suggestions>
+        </Suggestions> */}
         <div className="flex gap-2 mt-5">
           <input
         value={input}

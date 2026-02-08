@@ -7,7 +7,7 @@ import React from "react";
 const Home = () => {
   return (
     <div>
-      <Chat2/>
+      {/* <Chat2/> */}
       <MermaidRenderTest2 />
     </div>
   );
