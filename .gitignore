@@ -1,23 +1,5 @@
-# Node
-node_modules/
-*.log
-
-# Next.js / Vercel
-.next/
-.vercel/
-out/
-dist/
-build/
-
-# Env
-.env
-.env.*
-!.env.example
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
+/*/node_modules
+node_modules
+.yarn/
+.dev.vars
+*.dev.vars
