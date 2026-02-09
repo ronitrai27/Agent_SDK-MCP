@@ -4,7 +4,8 @@ import "./globals.css";
 import { ConvexClientProvider } from "@/lib/provider/ConvexClientProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
-import { dark } from "@clerk/themes"
+import { dark } from "@clerk/themes";
+import { QueryProvider } from "@/lib/provider/QueryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,23 +28,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClerkProvider
-         appearance={{
-          theme: dark,
-        }}>
-          <body
-            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        <QueryProvider>
+          <ClerkProvider
+            appearance={{
+              theme: dark,
+            }}
           >
-            <ConvexClientProvider>
-              <main>{children}</main>
-            </ConvexClientProvider>
-            <Toaster />
-          </body>
-        </ClerkProvider>
+            <body
+              className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+            >
+              <ConvexClientProvider>
+                <main>{children}</main>
+              </ConvexClientProvider>
+              <Toaster />
+            </body>
+          </ClerkProvider>
+        </QueryProvider>
       </body>
     </html>
   );
