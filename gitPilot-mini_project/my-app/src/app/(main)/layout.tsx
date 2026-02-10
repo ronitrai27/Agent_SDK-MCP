@@ -9,6 +9,7 @@ import { RedirectToSignIn, UserButton } from "@clerk/nextjs";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { Separator } from "@/components/ui/separator";
 import { api } from "../../../convex/_generated/api";
+import Account from "@/modules/dashboard/Account";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { isLoading: isStoreLoading } = useStoreUser();
@@ -30,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <Authenticated>
         <header className="flex justify-between h-15 bg-muted py-1 shrink-0 items-center border-b px-4">
           <div className="flex items-center gap-2">
-            {/* <DashboardBreadcrumbs /> */}
+            <Account/>
           </div>
           <div className="">
             <UserButton />
