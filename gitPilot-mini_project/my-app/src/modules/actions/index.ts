@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getRepositories } from "../github";
 
-
 interface Repository {
   id: number;
   name: string;

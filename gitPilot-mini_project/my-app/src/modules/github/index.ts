@@ -102,7 +102,7 @@ export const getRepoHealthData = async (owner: string, repo: string) => {
     });
 
     const totalPRs = allPRs.length;
-    const mergedPRs = allPRs.filter((pr:any) => pr.merged_at !== null).length;
+    const mergedPRs = allPRs.filter((pr: any) => pr.merged_at !== null).length;
     const prMergeRate = totalPRs > 0 ? (mergedPRs / totalPRs) * 100 : 0;
 
     console.log(`Total PRs: ${totalPRs}, Merged: ${mergedPRs}`);
@@ -144,7 +144,7 @@ export const getRepoLanguages = async (owner: string, repo: string) => {
     // Calculate total bytes
     const totalBytes = Object.values(languages).reduce(
       (sum, bytes) => sum + bytes,
-      0
+      0,
     );
 
     // Convert to array with percentages
@@ -194,3 +194,67 @@ export const getReadme = async (owner: string, repo: string) => {
     return null;
   }
 };
+
+// =================================
+// GETTING REPO ALL FILES (TEXT PART)
+// =================================
+
+export async function getRepoFileContents(
+  owner: string,
+  repo: string,
+  path: string = "",
+): Promise<{ path: string; content: string }[]> {
+  const token = await getGithubAccessToken();
+  const octokit = new Octokit({ auth: token });
+  const { data } = await octokit.rest.repos.getContent({
+    owner,
+    repo,
+    path,
+  });
+
+  // JUST A CHECK
+  if (!Array.isArray(data)) {
+    if (data.type === "file" && data.content) {
+      return [
+        {
+          path: data.path,
+          content: Buffer.from(data.content, "base64").toString("utf-8"),
+        },
+      ];
+    }
+    return [];
+  }
+
+  let files: { path: string; content: string }[] = [];
+
+  for (const item of data) {
+    if (item.type === "file") {
+      const { data: fileData } = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path: item.path,
+      });
+
+      // CHECKING
+      if (
+        !Array.isArray(fileData) &&
+        fileData.type === "file" &&
+        fileData.content
+      ) {
+        // FILTER OUT NON-CODE FILES IF NEEDD (IMAGES ETC)
+        if (!item.path.match(/\.(png|jpg|jpeg|gif|ico|tar|gz|pdf|zip|svg)$/i)) {
+          files.push({
+            path: item.path,
+            content: Buffer.from(fileData.content, "base64").toString("utf-8"),
+          });
+        }
+      }
+    } else if (item.type === "dir") {
+      const subFiles = await getRepoFileContents(owner, repo, item.path);
+
+      files = files.concat(subFiles);
+    }
+  }
+
+  return files;
+}

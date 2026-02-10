@@ -20,6 +20,7 @@ import { useState } from "react";
 import { Empty } from "@/components/ui/empty";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import RepoInfoPage from "@/modules/dashboard/RepoInfoPage";
 
 const Dashboard = () => {
   const user: Doc<"users"> | undefined | null = useQuery(
@@ -60,7 +61,7 @@ const Dashboard = () => {
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={70} className="min-h-screen">
           <div className="h-full p-6">
-            <h1>hello</h1>
+            <RepoInfoPage/>
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>

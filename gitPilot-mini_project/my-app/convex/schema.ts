@@ -9,4 +9,20 @@ export default defineSchema({
     githubName: v.optional(v.string()), // ronitrai27
     createdAt: v.number(),
   }).index("by_token", ["clerkToken"]),
+
+  // ===============================
+  // REPOSITORIES TABLE
+  // ===============================
+  repositories: defineTable({
+    githubId: v.int64(),
+    repoName: v.string(),
+    repoOwner: v.string(),
+    fullRepoName: v.string(),
+    repoUrl: v.string(),
+    userId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_github_id", ["githubId"]),
 });

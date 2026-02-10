@@ -43,11 +43,11 @@ const ShowRepo = ({
   setSelectedRepo,
 }: RepositoryListProps) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const { 
-    data: repositories, 
-    isLoading, 
+  const {
+    data: repositories,
+    isLoading,
     isFetching,
-    error 
+    error,
   } = useRepositories(currentPage, ITEMS_PER_PAGE);
 
   const handleRepoClick = (repo: Repository) => {
@@ -68,7 +68,10 @@ const ShowRepo = ({
     return (
       <div className="space-y-4">
         {[...Array(7)].map((_, i) => (
-          <div key={i} className="w-full p-2.5 rounded-lg border border-white/5 bg-white/[0.02]">
+          <div
+            key={i}
+            className="w-full p-2.5 rounded-lg border border-white/5 bg-white/[0.02]"
+          >
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">
                 <Skeleton className="size-8 rounded-md bg-white/5" />
@@ -95,14 +98,18 @@ const ShowRepo = ({
     <div className="flex flex-col h-full  pb-10">
       {/* Scrollable Repo List */}
       <div className="flex-1">
-        <div className={cn(
-          "space-y-4 transition-opacity duration-200",
-          isFetching ? "opacity-50 pointer-events-none" : "opacity-100"
-        )}>
+        <div
+          className={cn(
+            "space-y-4 transition-opacity duration-200",
+            isFetching ? "opacity-50 pointer-events-none" : "opacity-100",
+          )}
+        >
           {filteredRepos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <LucideGitBranch className="size-10 text-muted-foreground/20 mb-3" />
-              <p className="text-muted-foreground text-sm">No repositories found</p>
+              <p className="text-muted-foreground text-sm">
+                No repositories found
+              </p>
             </div>
           ) : (
             filteredRepos.map((repo) => (
@@ -118,14 +125,20 @@ const ShowRepo = ({
               >
                 <div className="flex w-full justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={cn(
-                      "p-2 rounded-md transition-colors",
-                      selectedRepo === repo.name ? "bg-white/10" : "bg-white/5"
-                    )}>
+                    <div
+                      className={cn(
+                        "p-2 rounded-md transition-colors",
+                        selectedRepo === repo.name
+                          ? "bg-white/10"
+                          : "bg-white/5",
+                      )}
+                    >
                       <LucideGitBranch
                         className={cn(
                           "w-4 h-4",
-                          selectedRepo === repo.name ? "text-white" : "text-muted-foreground"
+                          selectedRepo === repo.name
+                            ? "text-white"
+                            : "text-muted-foreground",
                         )}
                       />
                     </div>
@@ -158,15 +171,15 @@ const ShowRepo = ({
           <Pagination>
             <PaginationContent className="gap-2">
               <PaginationItem>
-                <PaginationPrevious 
+                <PaginationPrevious
                   onClick={() => handlePageChange(currentPage - 1)}
                   className={cn(
                     "bg-white/5 border-white/5 hover:bg-white/10 cursor-pointer transition-all",
-                    currentPage === 1 && "pointer-events-none opacity-30"
+                    currentPage === 1 && "pointer-events-none opacity-30",
                   )}
                 />
               </PaginationItem>
-              
+
               <PaginationItem>
                 <div className="px-3 py-1.5 rounded-md bg-white/5 border border-white/5 text-xs font-medium min-w-[32px] text-center">
                   {currentPage}
@@ -174,11 +187,12 @@ const ShowRepo = ({
               </PaginationItem>
 
               <PaginationItem>
-                <PaginationNext 
+                <PaginationNext
                   onClick={() => handlePageChange(currentPage + 1)}
                   className={cn(
                     "bg-white/5 border-white/5 hover:bg-white/10 cursor-pointer transition-all",
-                    filteredRepos.length < ITEMS_PER_PAGE && "pointer-events-none opacity-30"
+                    filteredRepos.length < ITEMS_PER_PAGE &&
+                      "pointer-events-none opacity-30",
                   )}
                 />
               </PaginationItem>
