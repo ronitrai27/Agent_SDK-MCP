@@ -22,6 +22,7 @@ export default defineSchema({
     userId: v.id("users"),
     createdAt: v.number(),
     updatedAt: v.number(),
+    status: v.optional(v.union(v.literal("indexing"), v.literal("completed"), v.literal("failed"))),
   })
     .index("by_user", ["userId"])
     .index("by_github_id", ["githubId"]),

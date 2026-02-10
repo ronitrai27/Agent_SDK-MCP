@@ -91,12 +91,15 @@ const Dashboard = () => {
                     })
                   }
                   className={cn(
-                    "px-4 py-1 rounded text-xs font-medium transition-all duration-300 whitespace-nowrap border",
+                    "px-4 py-1 rounded text-xs font-medium transition-all duration-300 whitespace-nowrap border flex items-center gap-2",
                     selectedRepo?.repo === repo.repoName
                       ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
                       : "bg-white/5 text-white/60 border-white/5 hover:border-white/20 hover:bg-white/10",
                   )}
                 >
+                  {repo.status === "indexing" && (
+                     <div className="size-2 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  )}
                   {repo.repoName}
                 </button>
               ))

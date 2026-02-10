@@ -207,6 +207,84 @@ export const getReadme = async (owner: string, repo: string) => {
 // GETTING REPO ALL FILES (TEXT PART)
 // =================================
 
+// export async function getRepoFileContents(
+//   owner: string,
+//   repo: string,
+//   accessToken: string,
+//   path: string = "",
+// ): Promise<{ path: string; content: string }[]> {
+//   const token = accessToken;
+//   console.log("Token for file contents: ", token);
+//   const octokit = new Octokit({ auth: token });
+//   const { data } = await octokit.rest.repos.getContent({
+//     owner,
+//     repo,
+//     path,
+//   });
+
+//   // JUST A CHECK
+//   if (!Array.isArray(data)) {
+//     if (data.type === "file" && data.content) {
+//       // Check if file should be included
+//       if (shouldIncludeFile(data.path)) {
+//         return [
+//           {
+//             path: data.path,
+//             content: Buffer.from(data.content, "base64").toString("utf-8"),
+//           },
+//         ];
+//       }
+//     }
+//     return [];
+//   }
+
+//   let files: { path: string; content: string }[] = [];
+
+//   for (const item of data) {
+//     if (item.type === "dir" && shouldSkipDirectory(item.path)) {
+//       console.log(`⏭️  Skipping directory: ${item.path}`);
+//       continue;
+//     }
+
+//     if (item.type === "file") {
+//       // Skip excluded files
+//       if (!shouldIncludeFile(item.path)) {
+//         console.log(`⏭️  Skipping file: ${item.path}`);
+//         continue;
+//       }
+
+//       const { data: fileData } = await octokit.rest.repos.getContent({
+//         owner,
+//         repo,
+//         path: item.path,
+//       });
+
+//       // CHECKING
+//       if (
+//         !Array.isArray(fileData) &&
+//         fileData.type === "file" &&
+//         fileData.content
+//       ) {
+//         files.push({
+//           path: item.path,
+//           content: Buffer.from(fileData.content, "base64").toString("utf-8"),
+//         });
+//       }
+//     } else if (item.type === "dir") {
+//       const subFiles = await getRepoFileContents(
+//         owner,
+//         repo,
+//         accessToken,
+//         item.path,
+//       );
+
+//       files = files.concat(subFiles);
+//     }
+//   }
+
+//   return files;
+// }
+
 export async function getRepoFileContents(
   owner: string,
   repo: string,
@@ -216,70 +294,126 @@ export async function getRepoFileContents(
   const token = accessToken;
   console.log("Token for file contents: ", token);
   const octokit = new Octokit({ auth: token });
+
+  // 🔥 Collect all file paths first (without fetching content)
+  const filePaths = await collectFilePaths(octokit, owner, repo, path);
+  console.log(`📁 Found ${filePaths.length} files to fetch`);
+
+  // 🔥 Fetch all file contents in parallel
+  const files = await fetchFileContentsParallel(
+    octokit,
+    owner,
+    repo,
+    filePaths,
+  );
+  console.log(`✅ Fetched ${files.length} files`);
+
+  return files;
+}
+
+// ========== STEP 1: Collect all file paths (fast, no content) ==========
+async function collectFilePaths(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  path: string = "",
+): Promise<string[]> {
   const { data } = await octokit.rest.repos.getContent({
     owner,
     repo,
     path,
   });
 
-  // JUST A CHECK
+  // Handle single file
   if (!Array.isArray(data)) {
-    if (data.type === "file" && data.content) {
-      // Check if file should be included
-      if (shouldIncludeFile(data.path)) {
-        return [
-          {
-            path: data.path,
-            content: Buffer.from(data.content, "base64").toString("utf-8"),
-          },
-        ];
-      }
+    if (data.type === "file" && shouldIncludeFile(data.path)) {
+      return [data.path];
     }
     return [];
   }
 
-  let files: { path: string; content: string }[] = [];
-
-  for (const item of data) {
+  // 🔥 Process directories in parallel
+  const promises = data.map(async (item) => {
+    // Skip excluded directories
     if (item.type === "dir" && shouldSkipDirectory(item.path)) {
       console.log(`⏭️  Skipping directory: ${item.path}`);
-      continue;
+      return [];
     }
 
+    // Include file if it passes filter
     if (item.type === "file") {
-      // Skip excluded files
-      if (!shouldIncludeFile(item.path)) {
+      if (shouldIncludeFile(item.path)) {
+        return [item.path];
+      } else {
         console.log(`⏭️  Skipping file: ${item.path}`);
-        continue;
+        return [];
       }
-
-      const { data: fileData } = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path: item.path,
-      });
-
-      // CHECKING
-      if (
-        !Array.isArray(fileData) &&
-        fileData.type === "file" &&
-        fileData.content
-      ) {
-        files.push({
-          path: item.path,
-          content: Buffer.from(fileData.content, "base64").toString("utf-8"),
-        });
-      }
-    } else if (item.type === "dir") {
-      const subFiles = await getRepoFileContents(
-        owner,
-        repo,
-        accessToken,
-        item.path,
-      );
-
-      files = files.concat(subFiles);
     }
+
+    // Recursively collect from subdirectories (in parallel)
+    if (item.type === "dir") {
+      return collectFilePaths(octokit, owner, repo, item.path);
+    }
+
+    return [];
+  });
+
+  const results = await Promise.all(promises);
+  return results.flat();
+}
+
+// ========== STEP 2: Fetch file contents in parallel batches ==========
+async function fetchFileContentsParallel(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  filePaths: string[],
+): Promise<{ path: string; content: string }[]> {
+  const BATCH_SIZE = 20; // 🔥 Fetch 20 files at once
+  const files: { path: string; content: string }[] = [];
+
+  for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+    const batch = filePaths.slice(i, i + BATCH_SIZE);
+
+    const batchResults = await Promise.allSettled(
+      batch.map(async (filePath) => {
+        try {
+          const { data: fileData } = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: filePath,
+          });
+
+          if (
+            !Array.isArray(fileData) &&
+            fileData.type === "file" &&
+            fileData.content
+          ) {
+            return {
+              path: filePath,
+              content: Buffer.from(fileData.content, "base64").toString(
+                "utf-8",
+              ),
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error(`❌ Failed to fetch ${filePath}:`, error);
+          return null;
+        }
+      }),
+    );
+
+    // Add successful results
+    batchResults.forEach((result) => {
+      if (result.status === "fulfilled" && result.value) {
+        files.push(result.value);
+      }
+    });
+
+    console.log(
+      `📥 Fetched batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(filePaths.length / BATCH_SIZE)} (${files.length}/${filePaths.length} files)`,
+    );
   }
 
   return files;
@@ -332,10 +466,10 @@ function shouldIncludeFile(filePath: string): boolean {
     ".prettierrc.js",
     ".prettierrc.json",
     "prettier.config.js",
-    "next.config.mjs", 
+    "next.config.mjs",
     "next.config.ts",
     "next.config.js",
-    "components.json", 
+    "components.json",
     "postcss.config.js",
     "postcss.config.mjs",
     ".editorconfig",
@@ -356,7 +490,7 @@ function shouldIncludeFile(filePath: string): boolean {
 
   if (
     filePath.match(
-      /\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff|pdf|zip|tar|gz|rar|7z|exe|dmg|woff|woff2|ttf|eot|mp4|mp3|wav|avi|mov)$/i
+      /\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff|pdf|zip|tar|gz|rar|7z|exe|dmg|woff|woff2|ttf|eot|mp4|mp3|wav|avi|mov)$/i,
     )
   ) {
     return false;

@@ -36,10 +36,38 @@ export const ConnectRepository = mutation({
       userId: user._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      status: "indexing",
     });
 
     return { repositoryId, userId: user.clerkToken };
   },
+});
+
+export const updateRepoStatus = mutation({
+  args: {
+    repoOwner: v.string(),
+    repoName: v.string(),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    
+    const existingRepo = await ctx.db
+        .query("repositories")
+        .filter((q) => q.and(
+            q.eq(q.field("repoOwner"), args.repoOwner),
+            q.eq(q.field("repoName"), args.repoName)
+        ))
+        .first();
+
+    if (!existingRepo) {
+        // Can't update what doesn't exist
+        return null; 
+    }
+
+    await ctx.db.patch(existingRepo._id, {
+        status: args.status as any,
+    });
+  }
 });
 
 export const getAllConnectedRepo = query({
