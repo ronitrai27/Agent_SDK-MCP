@@ -19,8 +19,8 @@ type batch = {
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const { embedding } = await embed({
-    model: google.textEmbeddingModel("text-embedding-004"),
-    value: text, // Text to convert into vector representation
+    model: google.embeddingModel("gemini-embedding-001"),
+    value: text,
   });
 
   return embedding;
@@ -61,8 +61,9 @@ export async function indexCodebase(
 
       console.log(`Indexing ${batch.length} vectors...`);
 
-    //   @ts-ignore
-      await pineconeIndex.upsert(batch);
+      // await pineconeIndex.upsert(batch);
+      // THIS IS THE KEY CHANGE FOR v7.0.0+
+      await pineconeIndex.upsert({ records: batch });
     }
   }
 }

@@ -1,57 +1,45 @@
-// This file now contains both server actions and client hooks.
-// 'use server' is applied to the action functions directly.
-import { useQuery } from "@tanstack/react-query";
-import { getRepoHealthData, getRepoLanguages } from "../github";
+"use server";
 
 import { inngest } from "@/inngest/client";
 import { auth } from "@clerk/nextjs/server";
+import { getRepoHealthData, getRepoLanguages } from "../github";
 
-export async function triggerRepoIndexing(owner: string, repo: string) {
-  "use server";
+export const ConnectRepo = async (details: {
+  owner: string;
+  repo: string;
+  githubId: number;
+  fullName: string;
+  url: string;
+}) => {
   const { userId } = await auth();
 
   if (!userId) {
     throw new Error("Unauthorized");
   }
 
+  // Trigger Inngest indexing in background
+  console.log("Triggering Inngest indexing...");
   await inngest.send({
     name: "repository-connected",
     data: {
-      owner,
-      repo,
+      owner: details.owner,
+      repo: details.repo,
       userId,
     },
   });
 
-  return { success: true };
-}
+  // Get initial data to return to client
+  console.log("Fetching initial data...");
+  const [healthData, languages] = await Promise.all([
+    getRepoHealthData(details.owner, details.repo),
+    getRepoLanguages(details.owner, details.repo),
+  ]);
 
-// ============================================
-// TANSTACK QUERY HOOKS
-// ============================================
-
-const CACHE_TIME = 30 * 60 * 1000; // 30 minutes
-
-export const useRepoHealthData = (owner: string, repo: string) => {
-  return useQuery({
-    queryKey: ["repo-health", owner, repo],
-    queryFn: () => getRepoHealthData(owner, repo),
-    staleTime: CACHE_TIME,
-    gcTime: CACHE_TIME,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-  });
+  return {
+    success: true,
+    data: {
+      healthData,
+      languages,
+    },
+  };
 };
-
-export const useRepoLanguages = (owner: string, repo: string) => {
-  return useQuery({
-    queryKey: ["repo-languages", owner, repo],
-    queryFn: () => getRepoLanguages(owner, repo),
-    staleTime: CACHE_TIME,
-    gcTime: CACHE_TIME,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-  });
-}

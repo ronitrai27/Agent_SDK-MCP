@@ -2,23 +2,27 @@ import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { useRepositories } from "../actions";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, LucideGitBranch, Star } from "lucide-react";
+import { LucideGitBranch, LucidePlus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { ConnectRepo } from ".";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 interface RepositoryListProps {
   searchQuery: string;
   selectedRepo: string;
-  setSelectedRepo: (repo: string) => void;
+  setSelectedRepo: (data: { owner: string; repo: string }) => void;
 }
 
 interface Repository {
@@ -43,6 +47,8 @@ const ShowRepo = ({
   setSelectedRepo,
 }: RepositoryListProps) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [isConnecting, setIsConnecting] = useState<number | null>(null);
+  const connectRepository = useMutation(api.repo.ConnectRepository);
   const {
     data: repositories,
     isLoading,
@@ -50,8 +56,41 @@ const ShowRepo = ({
     error,
   } = useRepositories(currentPage, ITEMS_PER_PAGE);
 
-  const handleRepoClick = (repo: Repository) => {
-    setSelectedRepo(repo.name);
+  const handleConnect = async (repo: Repository) => {
+    const toastId = toast.loading(`Connecting ${repo.name}...`);
+    try {
+      setIsConnecting(repo.id);
+      setSelectedRepo({ owner: repo.owner.login, repo: repo.name });
+
+      // database using Convex mutation
+      await connectRepository({
+        githubId: BigInt(repo.id) as any,
+        name: repo.name,
+        owner: repo.owner.login,
+        fullName: repo.full_name,
+        url: repo.html_url,
+      });
+
+      // Trigger server-side indexing and fetch initial data
+      const res = await ConnectRepo({
+        owner: repo.owner.login,
+        repo: repo.name,
+        githubId: repo.id,
+        fullName: repo.full_name,
+        url: repo.html_url,
+      });
+
+      if (res.success) {
+        toast.success(`Repository ${repo.name} connected successfully!`, {
+          id: toastId,
+        });
+      }
+    } catch (err) {
+      toast.error("Failed to connect repository", { id: toastId });
+      console.error(err);
+    } finally {
+      setIsConnecting(null);
+    }
   };
 
   const filteredRepos =
@@ -115,7 +154,9 @@ const ShowRepo = ({
             filteredRepos.map((repo) => (
               <div
                 key={repo.id}
-                onClick={() => handleRepoClick(repo)}
+                onClick={() =>
+                  setSelectedRepo({ owner: repo.owner.login, repo: repo.name })
+                }
                 className={cn(
                   "w-full flex flex-col space-y-3 items-center justify-between p-2.5 rounded-lg border transition-all duration-300 group cursor-pointer",
                   selectedRepo === repo.name
@@ -142,13 +183,22 @@ const ShowRepo = ({
                         )}
                       />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-2">
                       <p className="font-medium block capitalize text-sm truncate tracking-tight">
                         {repo.name}
                       </p>
-                      {/* {repo.language && (
-                        <span className="text-[10px] text-muted-foreground/60">{repo.language}</span>
-                      )} */}
+                      <Button
+                        disabled={isConnecting === repo.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleConnect(repo);
+                        }}
+                        className="h-fit py-0.5 px-2 text-[10px] bg-primary/10 border border-primary/30 text-white flex items-center gap-1 shrink-0 hover:bg-primary/20"
+                      >
+                        <>
+                          Connect <LucidePlus className="w-4 h-4" />
+                        </>
+                      </Button>
                     </div>
                   </div>
                   <Badge

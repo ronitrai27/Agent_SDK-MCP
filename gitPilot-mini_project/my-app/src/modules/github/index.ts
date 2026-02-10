@@ -21,6 +21,14 @@ export async function getGithubAccessToken() {
   console.log("accessToken", accessToken);
   return accessToken;
 }
+// ---------------------------------------
+// GITHUB TOKEN JUST FOR INNGEST
+// -------------------------------------
+export async function getUserGithubToken(userId: string) {
+  const client = await clerkClient();
+  const tokens = await client.users.getUserOauthAccessToken(userId, "github");
+  return tokens.data[0]?.token;
+}
 // ============================================
 // GETTING GITHUB REPOSITORIES
 // ============================================
@@ -202,9 +210,11 @@ export const getReadme = async (owner: string, repo: string) => {
 export async function getRepoFileContents(
   owner: string,
   repo: string,
+  accessToken: string,
   path: string = "",
 ): Promise<{ path: string; content: string }[]> {
-  const token = await getGithubAccessToken();
+  const token = accessToken;
+  console.log("Token for file contents: ", token);
   const octokit = new Octokit({ auth: token });
   const { data } = await octokit.rest.repos.getContent({
     owner,
@@ -215,12 +225,15 @@ export async function getRepoFileContents(
   // JUST A CHECK
   if (!Array.isArray(data)) {
     if (data.type === "file" && data.content) {
-      return [
-        {
-          path: data.path,
-          content: Buffer.from(data.content, "base64").toString("utf-8"),
-        },
-      ];
+      // Check if file should be included
+      if (shouldIncludeFile(data.path)) {
+        return [
+          {
+            path: data.path,
+            content: Buffer.from(data.content, "base64").toString("utf-8"),
+          },
+        ];
+      }
     }
     return [];
   }
@@ -228,7 +241,18 @@ export async function getRepoFileContents(
   let files: { path: string; content: string }[] = [];
 
   for (const item of data) {
+    if (item.type === "dir" && shouldSkipDirectory(item.path)) {
+      console.log(`⏭️  Skipping directory: ${item.path}`);
+      continue;
+    }
+
     if (item.type === "file") {
+      // Skip excluded files
+      if (!shouldIncludeFile(item.path)) {
+        console.log(`⏭️  Skipping file: ${item.path}`);
+        continue;
+      }
+
       const { data: fileData } = await octokit.rest.repos.getContent({
         owner,
         repo,
@@ -241,20 +265,114 @@ export async function getRepoFileContents(
         fileData.type === "file" &&
         fileData.content
       ) {
-        // FILTER OUT NON-CODE FILES IF NEEDD (IMAGES ETC)
-        if (!item.path.match(/\.(png|jpg|jpeg|gif|ico|tar|gz|pdf|zip|svg)$/i)) {
-          files.push({
-            path: item.path,
-            content: Buffer.from(fileData.content, "base64").toString("utf-8"),
-          });
-        }
+        files.push({
+          path: item.path,
+          content: Buffer.from(fileData.content, "base64").toString("utf-8"),
+        });
       }
     } else if (item.type === "dir") {
-      const subFiles = await getRepoFileContents(owner, repo, item.path);
+      const subFiles = await getRepoFileContents(
+        owner,
+        repo,
+        accessToken,
+        item.path,
+      );
 
       files = files.concat(subFiles);
     }
   }
 
   return files;
+}
+
+function shouldSkipDirectory(path: string): boolean {
+  const excludedDirs = [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".next",
+    "out",
+    "coverage",
+    ".turbo",
+    ".vercel",
+    ".cache",
+    "public/assets", // Large asset folders
+    "public/images",
+    ".husky",
+    ".vscode",
+    ".idea",
+  ];
+
+  const dirName = path.split("/").pop() || "";
+  return excludedDirs.includes(dirName);
+}
+
+function shouldIncludeFile(filePath: string): boolean {
+  const fileName = filePath.split("/").pop() || "";
+
+  // Exclude lock files
+  const lockFiles = [
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lockb",
+  ];
+  if (lockFiles.includes(fileName)) {
+    return false;
+  }
+
+  const excludedConfigs = [
+    "eslint.config.mjs",
+    "eslint.config.js",
+    ".eslintrc",
+    ".eslintrc.js",
+    ".eslintrc.json",
+    ".prettierrc",
+    ".prettierrc.js",
+    ".prettierrc.json",
+    "prettier.config.js",
+    "next.config.mjs", 
+    "next.config.ts",
+    "next.config.js",
+    "components.json", 
+    "postcss.config.js",
+    "postcss.config.mjs",
+    ".editorconfig",
+    ".nvmrc",
+    ".npmrc",
+    "vercel.json",
+  ];
+  if (excludedConfigs.includes(fileName)) {
+    return false;
+  }
+
+  if (fileName === ".gitignore" || fileName === ".gitattributes") {
+    return false;
+  }
+  if (fileName.match(/^\.env/)) {
+    return false;
+  }
+
+  if (
+    filePath.match(
+      /\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff|pdf|zip|tar|gz|rar|7z|exe|dmg|woff|woff2|ttf|eot|mp4|mp3|wav|avi|mov)$/i
+    )
+  ) {
+    return false;
+  }
+
+  if (filePath.endsWith(".map")) {
+    return false;
+  }
+
+  if (fileName.match(/^LICENSE/i) || fileName.match(/^LICENCE/i)) {
+    return false;
+  }
+  if (fileName.match(/^CHANGELOG/i)) {
+    return false;
+  }
+
+  // Include everything else (code files)
+  return true;
 }
