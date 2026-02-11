@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+// import { handlePushEvent } from "@/modules/github";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // console.log("WEBHOOK-GITHUB", body);
     const event = req.headers.get("X-gitHub-Event");
     console.log("----------------EVENT --->", event);
 
@@ -15,12 +15,16 @@ export async function POST(req: NextRequest) {
     // ===============================
     if (event === "push") {
       console.log("============Pushed Event Triggered !============");
+      // await handlePushEvent(body);
+      // return NextResponse.json(
+      //   { message: "Push Event Processed" },
+      //   { status: 200 },
+      // );
     }
     // ===============================
     // ISSUES
     // ===============================
     if (event === "issues") {
-      // console.log("issues event", body);
       const action = body.action;
       const issue = body.issue;
       const repo = body.repository.full_name;

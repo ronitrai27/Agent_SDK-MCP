@@ -98,7 +98,7 @@ const Dashboard = () => {
                   )}
                 >
                   {repo.status === "indexing" && (
-                     <div className="size-2 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    <div className="size-2 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                   )}
                   {repo.repoName}
                 </button>

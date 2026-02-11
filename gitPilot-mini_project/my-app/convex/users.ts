@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
 // ==================================
 // NEW USER
@@ -51,5 +52,12 @@ export const getCurrentUser = query({
       .unique();
 
     return user ?? null;
+  },
+});
+
+export const getUser = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
   },
 });

@@ -13,19 +13,18 @@ export const ConnectRepository = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Unauthenticated");
-    } 
+    }
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_token", (q) =>
-        q.eq("clerkToken", identity.tokenIdentifier)
+        q.eq("clerkToken", identity.tokenIdentifier),
       )
       .unique();
 
     if (!user) {
       throw new Error("User not found");
     }
-
 
     const repositoryId = await ctx.db.insert("repositories", {
       githubId: args.githubId,
@@ -50,24 +49,25 @@ export const updateRepoStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
-    
     const existingRepo = await ctx.db
-        .query("repositories")
-        .filter((q) => q.and(
-            q.eq(q.field("repoOwner"), args.repoOwner),
-            q.eq(q.field("repoName"), args.repoName)
-        ))
-        .first();
+      .query("repositories")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("repoOwner"), args.repoOwner),
+          q.eq(q.field("repoName"), args.repoName),
+        ),
+      )
+      .first();
 
     if (!existingRepo) {
-        // Can't update what doesn't exist
-        return null; 
+      // Can't update what doesn't exist
+      return null;
     }
 
     await ctx.db.patch(existingRepo._id, {
-        status: args.status as any,
+      status: args.status as any,
     });
-  }
+  },
 });
 
 export const getAllConnectedRepo = query({
@@ -81,7 +81,7 @@ export const getAllConnectedRepo = query({
     const user = await ctx.db
       .query("users")
       .withIndex("by_token", (q) =>
-        q.eq("clerkToken", identity.tokenIdentifier)
+        q.eq("clerkToken", identity.tokenIdentifier),
       )
       .unique();
 
@@ -93,5 +93,101 @@ export const getAllConnectedRepo = query({
       .query("repositories")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
+  },
+});
+
+export const getRepoByGithubId = query({
+  args: { githubId: v.int64() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("repositories")
+      .withIndex("by_github_id", (q) => q.eq("githubId", args.githubId))
+      .first();
+  },
+});
+
+export const getRepoByOwnerAndName = query({
+  args: { owner: v.string(), name: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      return null;
+    }
+    return await ctx.db
+      .query("repositories")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("repoOwner"), args.owner),
+          q.eq(q.field("repoName"), args.name),
+        ),
+      )
+      .first();
+  },
+});
+
+export const createReview = mutation({
+  args: {
+    repoId: v.id("repositories"),
+    prOrCommitTitle: v.string(),
+    prOrCommitUrl: v.optional(v.string()),
+    commitHash: v.string(),
+    authorUserName: v.string(),
+    reviewType: v.literal("commit"),
+    reviewStatus: v.literal("pending"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("reviews", {
+      repoId: args.repoId,
+      prOrCommitTitle: args.prOrCommitTitle,
+      prOrCommitUrl: args.prOrCommitUrl,
+      commitHash: args.commitHash,
+      authorUserName: args.authorUserName,
+      reviewType: args.reviewType,
+      reviewStatus: args.reviewStatus, // pending
+      review: "", // Initial empty review
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const updateReview = mutation({
+  args: {
+    reviewId: v.id("reviews"),
+    review: v.string(),
+    reviewStatus: v.union(v.literal("completed"), v.literal("failed")),
+    ctiticalIssueFound: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.reviewId, {
+      review: args.review,
+      reviewStatus: args.reviewStatus,
+      ctiticalIssueFound: args.ctiticalIssueFound,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const createIssue = mutation({
+  args: {
+    repoId: v.id("repositories"),
+    issueTitle: v.string(),
+    issueDescription: v.string(),
+    issueStatus: v.union(
+      v.literal("assigned"),
+      v.literal("ignored"),
+      v.literal("pending"),
+      v.literal("resolved"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("issues", {
+      repoId: args.repoId,
+      issueTitle: args.issueTitle,
+      issueDescription: args.issueDescription,
+      issueStatus: args.issueStatus,
+      issueCreatedAt: Date.now(),
+      issueUpdatedAt: Date.now(),
+    });
   },
 });

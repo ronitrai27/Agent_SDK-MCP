@@ -3,22 +3,23 @@ import { getRepoFileContents, getUserGithubToken } from "@/modules/github";
 import { indexCodebase } from "@/modules/pinecone";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
+export * from "./commit";
 
 export const indexRepo = inngest.createFunction(
   { id: "index-repo" },
-  { 
+  {
     event: "repository-connected",
     onFailure: async ({ event, error }: { event: any; error: any }) => {
       const { owner, repo } = event.data.event.data;
       const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-      
+
       console.error(`Indexing failed for ${owner}/${repo}:`, error);
       await convex.mutation(api.repo.updateRepoStatus, {
         repoOwner: owner,
         repoName: repo,
         status: "failed",
       });
-    }
+    },
   },
 
   async ({ event, step }) => {
@@ -35,13 +36,13 @@ export const indexRepo = inngest.createFunction(
     await step.run("index-codebase", async () => {
       await indexCodebase(`${owner}/${repo}`, files);
     });
-    
+
     await step.run("update-status-completed", async () => {
-        await convex.mutation(api.repo.updateRepoStatus, {
-          repoOwner: owner,
-          repoName: repo,
-          status: "completed"
-        });
+      await convex.mutation(api.repo.updateRepoStatus, {
+        repoOwner: owner,
+        repoName: repo,
+        status: "completed",
+      });
     });
 
     return { success: true, indexedFiles: files.length };
