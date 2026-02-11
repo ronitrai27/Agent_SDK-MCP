@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-// import { handlePushEvent } from "@/modules/github";
+import { handlePushEvent } from "@/modules/github";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +20,14 @@ export async function POST(req: NextRequest) {
       //   { message: "Push Event Processed" },
       //   { status: 200 },
       // );
+      handlePushEvent(body)
+        .then(() => console.log(`✅ Push Event Processed`))
+        .catch((err: any) => console.error(`❌ Error:`, err));
+
+      return NextResponse.json(
+        { message: "Webhook received" },
+        { status: 202 },
+      );
     }
     // ===============================
     // ISSUES

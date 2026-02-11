@@ -3,20 +3,6 @@ import { inngest } from "@/inngest/client";
 import { auth } from "@clerk/nextjs/server";
 import { getRepoHealthData, getRepoLanguages } from "../github";
 
- const AI_LIMIT_CALL = {
-  free: {
-    commit: 5,
-    pr: 5,
-  },
-  pro: {
-    commit: 10,
-    pr: 10,
-  },
-  elite: {
-    commit: 50,
-    pr: 50,
-  },
-};
 
 export const ConnectRepo = async (details: {
   owner: string;

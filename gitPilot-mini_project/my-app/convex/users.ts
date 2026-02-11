@@ -25,6 +25,7 @@ export const createNewUser = mutation({
 
     return await ctx.db.insert("users", {
       clerkToken: identity.tokenIdentifier,
+      clerkUserId: identity.subject, // Clerk User ID
       userName: identity.name || "",
       imageUrl: identity?.pictureUrl || "",
       githubName: identity?.nickname || "",

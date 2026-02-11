@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export default defineSchema({
   users: defineTable({
     clerkToken: v.string(),
+    clerkUserId: v.optional(v.string()), // Clerk User ID for OAuth token retrieval
     userName: v.string(), // rox
     imageUrl: v.optional(v.string()),
     githubName: v.optional(v.string()), // ronitrai27

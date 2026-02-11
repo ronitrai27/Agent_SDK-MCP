@@ -524,6 +524,85 @@ function shouldIncludeFile(filePath: string): boolean {
 // =================================
 // GET COMMIT DETAILS WITH FILES
 // =================================
+// export async function getCommitDetails(
+//   token: string,
+//   owner: string,
+//   repo: string,
+//   commitSha: string,
+// ) {
+//   const octokit = new Octokit({ auth: token });
+
+//   // console.log(`Fetching commit details for ${commitSha} in ${owner}/${repo}`);
+
+//   const { data: commit } = await octokit.rest.repos.getCommit({
+//     owner,
+//     repo,
+//     ref: commitSha,
+//   });
+
+//   const files = await Promise.all(
+//     (commit.files || []).map(async (file) => {
+//       // Logic to fetch file content if needed, or just return patch
+//       // If status is removed, we might skip or indicate removal
+//       if (file.status === "removed") return null;
+
+//       try {
+//         // We fetch the full content of the file at this commit
+//         // because the user requested "file contents"
+//         // Also use shouldIncludeFile to filter out unrelated files
+//         if (!shouldIncludeFile(file.filename)) {
+//           return null;
+//         }
+
+//         const { data: fileData } = await octokit.rest.repos.getContent({
+//           owner,
+//           repo,
+//           path: file.filename,
+//           ref: commitSha,
+//         });
+
+//         let content = "";
+//         if (
+//           !Array.isArray(fileData) &&
+//           fileData.type === "file" &&
+//           fileData.content
+//         ) {
+//           content = Buffer.from(fileData.content, "base64").toString("utf-8");
+//         } else {
+//           return null;
+//         }
+
+//         return {
+//           filename: file.filename,
+//           status: file.status,
+//           additions: file.additions,
+//           deletions: file.deletions,
+//           patch: file.patch,
+//           content: content,
+//         };
+//       } catch (error) {
+//         console.error(`Failed to fetch content for ${file.filename}:`, error);
+//         return null;
+//       }
+//     }),
+//   );
+
+//   const validFiles = files.filter(
+//     (f): f is NonNullable<typeof f> => f !== null,
+//   );
+
+//   return {
+//     sha: commit.sha,
+//     message: commit.commit.message,
+//     author: commit.commit.author?.name,
+//     date: commit.commit.author?.date,
+//     files: validFiles,
+//   };
+// }
+
+// =================================
+// GET COMMIT DETAILS WITH FILES
+// =================================
 export async function getCommitDetails(
   token: string,
   owner: string,
@@ -532,72 +611,117 @@ export async function getCommitDetails(
 ) {
   const octokit = new Octokit({ auth: token });
 
-  // console.log(`Fetching commit details for ${commitSha} in ${owner}/${repo}`);
+  try {
+    console.log("Fetching commits contents");
+    const { data: commit } = await octokit.rest.repos.getCommit({
+      owner,
+      repo,
+      ref: commitSha,
+    });
 
-  const { data: commit } = await octokit.rest.repos.getCommit({
-    owner,
-    repo,
-    ref: commitSha,
-  });
+    // Limit files processed to prevent rate limits & token overflow
+    const filesToProcess = (commit.files || []).slice(0, 20); // Max 20 files
 
-  const files = await Promise.all(
-    (commit.files || []).map(async (file) => {
-      // Logic to fetch file content if needed, or just return patch
-      // If status is removed, we might skip or indicate removal
-      if (file.status === "removed") return null;
+    const files = await Promise.all(
+      filesToProcess.map(async (file) => {
+        // Skip removed files
+        if (file.status === "removed") return null;
 
-      try {
-        // We fetch the full content of the file at this commit
-        // because the user requested "file contents"
-        // Also use shouldIncludeFile to filter out unrelated files
-        if (!shouldIncludeFile(file.filename)) {
+        // Skip files we don't want to review (binary, configs, etc.)
+        if (!shouldIncludeFile(file.filename)) return null;
+
+        // Skip files that are too large (>100KB)
+        if ((file.changes || 0) > 1000) {
+          console.log(
+            `⚠️ Skipping large file: ${file.filename} (${file.changes} changes)`,
+          );
           return null;
         }
 
-        const { data: fileData } = await octokit.rest.repos.getContent({
-          owner,
-          repo,
-          path: file.filename,
-          ref: commitSha,
-        });
+        try {
+          // Fetch full file content at this commit
+          const { data: fileData } = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: file.filename,
+            ref: commitSha,
+          });
 
-        let content = "";
-        if (
-          !Array.isArray(fileData) &&
-          fileData.type === "file" &&
-          fileData.content
-        ) {
-          content = Buffer.from(fileData.content, "base64").toString("utf-8");
-        } else {
-          return null;
+          // Ensure it's a file (not a directory) with content
+          if (
+            Array.isArray(fileData) ||
+            fileData.type !== "file" ||
+            !fileData.content
+          ) {
+            return null;
+          }
+
+          // Decode base64 content
+          const content = Buffer.from(fileData.content, "base64").toString(
+            "utf-8",
+          );
+
+          // Additional safety: skip if content is massive
+          if (content.length > 50000) {
+            // 50KB limit
+            console.log(`⚠️ Skipping large content: ${file.filename}`);
+            return {
+              filename: file.filename,
+              status: file.status,
+              additions: file.additions || 0,
+              deletions: file.deletions || 0,
+              patch: file.patch || "",
+              content: "// Content too large to include",
+            };
+          }
+
+          return {
+            filename: file.filename,
+            status: file.status,
+            additions: file.additions || 0,
+            deletions: file.deletions || 0,
+            patch: file.patch || "",
+            content: content,
+          };
+        } catch (error) {
+          // File might not exist at this ref or API error
+          console.error(
+            `❌ Failed to fetch content for ${file.filename}:`,
+            error,
+          );
+          return {
+            filename: file.filename,
+            status: file.status,
+            additions: file.additions || 0,
+            deletions: file.deletions || 0,
+            patch: file.patch || "",
+            content: null, // Indicate failure but keep file in results
+          };
         }
+      }),
+    );
 
-        return {
-          filename: file.filename,
-          status: file.status,
-          additions: file.additions,
-          deletions: file.deletions,
-          patch: file.patch,
-          content: content,
-        };
-      } catch (error) {
-        console.error(`Failed to fetch content for ${file.filename}:`, error);
-        return null;
-      }
-    }),
-  );
+    // Filter out null entries
+    const validFiles = files.filter(
+      (f): f is NonNullable<typeof f> => f !== null,
+    );
 
-  const validFiles = files.filter(
-    (f): f is NonNullable<typeof f> => f !== null,
-  );
-
-  return {
-    sha: commit.sha,
-    message: commit.commit.message,
-    author: commit.commit.author?.name,
-    date: commit.commit.author?.date,
-    files: validFiles,
-  };
+    return {
+      sha: commit.sha,
+      message: commit.commit.message,
+      author: commit.commit.author?.name || "Unknown",
+      date: commit.commit.author?.date,
+      files: validFiles,
+      stats: {
+        totalFiles: validFiles.length,
+        totalAdditions: validFiles.reduce((sum, f) => sum + f.additions, 0),
+        totalDeletions: validFiles.reduce((sum, f) => sum + f.deletions, 0),
+      },
+    };
+  } catch (error) {
+    console.error(`❌ Failed to fetch commit ${commitSha}:`, error);
+    throw new Error(`Failed to fetch commit details: ${error}`);
+  }
 }
 
 // =================================
@@ -606,14 +730,18 @@ export async function getCommitDetails(
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { inngest } from "@/inngest/client";
+
+
 export async function handlePushEvent(payload: any) {
   const { repository, commits, pusher } = payload;
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
   // 1. Get Repo & User
+  console.log("Fetching repo data");
   const repoData = await convex.query(api.repo.getRepoByGithubId, {
-    githubId: repository.id,
+    githubId: BigInt(repository.id) as any,
   });
+  console.log("Repo data fetched:", repoData);
 
   if (!repoData) {
     console.log("Repository not found in database:", repository.full_name);
@@ -634,13 +762,21 @@ export async function handlePushEvent(payload: any) {
     console.log("Usage limit exceeded for user", userData.userName);
     return { message: "Usage limit exceeded", status: "skipped" };
   }
+  console.log("Limit passed for the user. !!!");
 
-  const token = await getUserGithubToken(userData.clerkToken);
+  // Get GitHub token using clerkUserId from database
+  if (!userData.clerkUserId) {
+    console.error("Clerk User ID not found for user:", userData.userName);
+    return { message: "Clerk User ID not found", status: "failed" };
+  }
+
+  const token = await getUserGithubToken(userData.clerkUserId);
 
   if (!token) {
     console.error("GitHub token not found for user:", userData.userName);
     return { message: "GitHub token not found", status: "failed" };
   }
+  console.log("Token found for user:", userData.userName);
 
   // Process each commit
   const results = [];
@@ -648,12 +784,14 @@ export async function handlePushEvent(payload: any) {
     console.log(`Processing commit: ${commit.id}`);
 
     // 2. Fetch commit details (files & content)
+    console.log("Fetching commits contents");
     const commitDetails = await getCommitDetails(
       token,
       repository.owner.name || repository.owner.login,
       repository.name,
       commit.id,
     );
+    console.log("Commit details fetched:", commitDetails);
 
     // 3. Create initial review record (pending)
     const reviewId = await convex.mutation(api.repo.createReview, {
@@ -665,9 +803,10 @@ export async function handlePushEvent(payload: any) {
       reviewType: "commit",
       reviewStatus: "pending",
     });
+    console.log("Review created:", reviewId);
 
     // 4. Send Inngest Event to trigger AI review
-    // We pass the commit details and reviewId so the worker doesn't need to re-fetch/re-create
+    console.log("Sending Inngest event");
     await inngest.send({
       name: "commit/analyze",
       data: {

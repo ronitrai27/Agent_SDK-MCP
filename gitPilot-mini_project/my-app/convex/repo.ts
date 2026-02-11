@@ -191,3 +191,25 @@ export const createIssue = mutation({
     });
   },
 });
+
+export const getReviewsByRepoId = query({
+  args: { repoId: v.id("repositories") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("reviews")
+      .withIndex("by_repo", (q) => q.eq("repoId", args.repoId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const getIssuesByRepoId = query({
+  args: { repoId: v.id("repositories") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("issues")
+      .withIndex("by_repo", (q) => q.eq("repoId", args.repoId))
+      .order("desc")
+      .collect();
+  },
+});
