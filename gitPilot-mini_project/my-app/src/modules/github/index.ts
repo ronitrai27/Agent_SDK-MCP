@@ -524,161 +524,161 @@ function shouldIncludeFile(filePath: string): boolean {
 // =================================
 // GET COMMIT DETAILS WITH FILES
 // =================================
-// export async function getCommitDetails(
-//   token: string,
-//   owner: string,
-//   repo: string,
-//   commitSha: string,
-// ) {
-//   const octokit = new Octokit({ auth: token });
+export async function getCommitDetails(
+  token: string,
+  owner: string,
+  repo: string,
+  commitSha: string,
+) {
+  const octokit = new Octokit({ auth: token });
 
-//   // console.log(`Fetching commit details for ${commitSha} in ${owner}/${repo}`);
+  // console.log(`Fetching commit details for ${commitSha} in ${owner}/${repo}`);
 
-//   const { data: commit } = await octokit.rest.repos.getCommit({
-//     owner,
-//     repo,
-//     ref: commitSha,
-//   });
+  const { data: commit } = await octokit.rest.repos.getCommit({
+    owner,
+    repo,
+    ref: commitSha,
+  });
 
-//   const files = await Promise.all(
-//     (commit.files || []).map(async (file) => {
-//       // Logic to fetch file content if needed, or just return patch
-//       // If status is removed, we might skip or indicate removal
-//       if (file.status === "removed") return null;
+  const files = await Promise.all(
+    (commit.files || []).map(async (file) => {
+      // Logic to fetch file content if needed, or just return patch
+      // If status is removed, we might skip or indicate removal
+      if (file.status === "removed") return null;
 
-//       try {
-//         // We fetch the full content of the file at this commit
-//         // because the user requested "file contents"
-//         // Also use shouldIncludeFile to filter out unrelated files
-//         if (!shouldIncludeFile(file.filename)) {
-//           return null;
-//         }
+      try {
+        // We fetch the full content of the file at this commit
+        // because the user requested "file contents"
+        // Also use shouldIncludeFile to filter out unrelated files
+        if (!shouldIncludeFile(file.filename)) {
+          return null;
+        }
 
-//         const { data: fileData } = await octokit.rest.repos.getContent({
-//           owner,
-//           repo,
-//           path: file.filename,
-//           ref: commitSha,
-//         });
+        const { data: fileData } = await octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: file.filename,
+          ref: commitSha,
+        });
 
-//         let content = "";
-//         if (
-//           !Array.isArray(fileData) &&
-//           fileData.type === "file" &&
-//           fileData.content
-//         ) {
-//           content = Buffer.from(fileData.content, "base64").toString("utf-8");
-//         } else {
-//           return null;
-//         }
+        let content = "";
+        if (
+          !Array.isArray(fileData) &&
+          fileData.type === "file" &&
+          fileData.content
+        ) {
+          content = Buffer.from(fileData.content, "base64").toString("utf-8");
+        } else {
+          return null;
+        }
 
-//         return {
-//           filename: file.filename,
-//           status: file.status,
-//           additions: file.additions,
-//           deletions: file.deletions,
-//           patch: file.patch,
-//           content: content,
-//         };
-//       } catch (error) {
-//         console.error(`Failed to fetch content for ${file.filename}:`, error);
-//         return null;
-//       }
-//     }),
-//   );
+        return {
+          filename: file.filename,
+          status: file.status,
+          additions: file.additions,
+          deletions: file.deletions,
+          patch: file.patch,
+          content: content,
+        };
+      } catch (error) {
+        console.error(`Failed to fetch content for ${file.filename}:`, error);
+        return null;
+      }
+    }),
+  );
 
-//   const validFiles = files.filter(
-//     (f): f is NonNullable<typeof f> => f !== null,
-//   );
+  const validFiles = files.filter(
+    (f): f is NonNullable<typeof f> => f !== null,
+  );
 
-//   return {
-//     sha: commit.sha,
-//     message: commit.commit.message,
-//     author: commit.commit.author?.name,
-//     date: commit.commit.author?.date,
-//     files: validFiles,
-//   };
-// }
+  return {
+    sha: commit.sha,
+    message: commit.commit.message,
+    author: commit.commit.author?.name,
+    date: commit.commit.author?.date,
+    files: validFiles,
+  };
+}
 
 // =================================
 // HANDLE PUSH EVENT
 // =================================
-// import { ConvexHttpClient } from "convex/browser";
-// import { api } from "../../../convex/_generated/api";
-// import { inngest } from "@/inngest/client";
-// export async function handlePushEvent(payload: any) {
-//   const { repository, commits, pusher } = payload;
-//   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../convex/_generated/api";
+import { inngest } from "@/inngest/client";
+export async function handlePushEvent(payload: any) {
+  const { repository, commits, pusher } = payload;
+  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-//   // 1. Get Repo & User
-//   const repoData = await convex.query(api.repo.getRepoByGithubId, {
-//     githubId: repository.id,
-//   });
+  // 1. Get Repo & User
+  const repoData = await convex.query(api.repo.getRepoByGithubId, {
+    githubId: repository.id,
+  });
 
-//   if (!repoData) {
-//     console.log("Repository not found in database:", repository.full_name);
-//     return { message: "Repository not found", status: "skipped" };
-//   }
+  if (!repoData) {
+    console.log("Repository not found in database:", repository.full_name);
+    return { message: "Repository not found", status: "skipped" };
+  }
 
-//   const userData = await convex.query(api.users.getUser, {
-//     userId: repoData.userId,
-//   });
+  const userData = await convex.query(api.users.getUser, {
+    userId: repoData.userId,
+  });
 
-//   if (!userData) {
-//     console.log("User not found for repo:", repoData.repoName);
-//     return { message: "User not found", status: "skipped" };
-//   }
+  if (!userData) {
+    console.log("User not found for repo:", repoData.repoName);
+    return { message: "User not found", status: "skipped" };
+  }
 
-//   // Check limits
-//   if (userData.aiLimits && userData.aiLimits.commit >= 5) {
-//     console.log("Usage limit exceeded for user", userData.userName);
-//     return { message: "Usage limit exceeded", status: "skipped" };
-//   }
+  // Check limits
+  if (userData.aiLimits && userData.aiLimits.commit >= 5) {
+    console.log("Usage limit exceeded for user", userData.userName);
+    return { message: "Usage limit exceeded", status: "skipped" };
+  }
 
-//   const token = await getUserGithubToken(userData.clerkToken);
+  const token = await getUserGithubToken(userData.clerkToken);
 
-//   if (!token) {
-//     console.error("GitHub token not found for user:", userData.userName);
-//     return { message: "GitHub token not found", status: "failed" };
-//   }
+  if (!token) {
+    console.error("GitHub token not found for user:", userData.userName);
+    return { message: "GitHub token not found", status: "failed" };
+  }
 
-//   // Process each commit
-//   const results = [];
-//   for (const commit of commits) {
-//     console.log(`Processing commit: ${commit.id}`);
+  // Process each commit
+  const results = [];
+  for (const commit of commits) {
+    console.log(`Processing commit: ${commit.id}`);
 
-//     // 2. Fetch commit details (files & content)
-//     const commitDetails = await getCommitDetails(
-//       token,
-//       repository.owner.name || repository.owner.login,
-//       repository.name,
-//       commit.id,
-//     );
+    // 2. Fetch commit details (files & content)
+    const commitDetails = await getCommitDetails(
+      token,
+      repository.owner.name || repository.owner.login,
+      repository.name,
+      commit.id,
+    );
 
-//     // 3. Create initial review record (pending)
-//     const reviewId = await convex.mutation(api.repo.createReview, {
-//       repoId: repoData._id,
-//       prOrCommitTitle: commit.message || "No title",
-//       prOrCommitUrl: commit.url,
-//       commitHash: commit.id,
-//       authorUserName: commit.author.name || pusher.name,
-//       reviewType: "commit",
-//       reviewStatus: "pending",
-//     });
+    // 3. Create initial review record (pending)
+    const reviewId = await convex.mutation(api.repo.createReview, {
+      repoId: repoData._id,
+      prOrCommitTitle: commit.message || "No title",
+      prOrCommitUrl: commit.url,
+      commitHash: commit.id,
+      authorUserName: commit.author.name || pusher.name,
+      reviewType: "commit",
+      reviewStatus: "pending",
+    });
 
-//     // 4. Send Inngest Event to trigger AI review
-//     // We pass the commit details and reviewId so the worker doesn't need to re-fetch/re-create
-//     await inngest.send({
-//       name: "commit/analyze",
-//       data: {
-//         reviewId,
-//         commitDetails,
-//         repoId: repoData._id,
-//       },
-//     });
+    // 4. Send Inngest Event to trigger AI review
+    // We pass the commit details and reviewId so the worker doesn't need to re-fetch/re-create
+    await inngest.send({
+      name: "commit/analyze",
+      data: {
+        reviewId,
+        commitDetails,
+        repoId: repoData._id,
+      },
+    });
 
-//     results.push({ commit: commit.id, status: "queued" });
-//   }
+    results.push({ commit: commit.id, status: "queued" });
+  }
 
-//   return { message: "Processed", results };
-// }
+  return { message: "Processed", results };
+}

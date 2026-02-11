@@ -3,7 +3,7 @@ import { inngest } from "@/inngest/client";
 import { auth } from "@clerk/nextjs/server";
 import { getRepoHealthData, getRepoLanguages } from "../github";
 
-export const AI_LIMIT_CALL = {
+ const AI_LIMIT_CALL = {
   free: {
     commit: 5,
     pr: 5,
