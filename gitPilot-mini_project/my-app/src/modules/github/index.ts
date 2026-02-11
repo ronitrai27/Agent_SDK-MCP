@@ -203,87 +203,42 @@ export const getReadme = async (owner: string, repo: string) => {
   }
 };
 
+// ============================
+// CREATING WEBHOOK
+// ============================
+export const createWebhook = async (owner: string, repo: string) => {
+  const token = await getGithubAccessToken();
+
+  const octokit = new Octokit({ auth: token });
+
+  const webhookUrl = `${process.env.NGROK_URL}/api/webhooks/github`;
+
+  const { data: hooks } = await octokit.rest.repos.listWebhooks({
+    owner,
+    repo,
+  });
+
+  const exisitingHook = hooks.find((hook) => hook.config.url === webhookUrl);
+  if (exisitingHook) {
+    return exisitingHook;
+  }
+
+  const { data } = await octokit.rest.repos.createWebhook({
+    owner,
+    repo,
+    config: {
+      url: webhookUrl,
+      content_type: "json",
+    },
+    events: ["pull_request", "push", "issues"],
+  });
+
+  return data;
+};
+
 // =================================
 // GETTING REPO ALL FILES (TEXT PART)
 // =================================
-
-// export async function getRepoFileContents(
-//   owner: string,
-//   repo: string,
-//   accessToken: string,
-//   path: string = "",
-// ): Promise<{ path: string; content: string }[]> {
-//   const token = accessToken;
-//   console.log("Token for file contents: ", token);
-//   const octokit = new Octokit({ auth: token });
-//   const { data } = await octokit.rest.repos.getContent({
-//     owner,
-//     repo,
-//     path,
-//   });
-
-//   // JUST A CHECK
-//   if (!Array.isArray(data)) {
-//     if (data.type === "file" && data.content) {
-//       // Check if file should be included
-//       if (shouldIncludeFile(data.path)) {
-//         return [
-//           {
-//             path: data.path,
-//             content: Buffer.from(data.content, "base64").toString("utf-8"),
-//           },
-//         ];
-//       }
-//     }
-//     return [];
-//   }
-
-//   let files: { path: string; content: string }[] = [];
-
-//   for (const item of data) {
-//     if (item.type === "dir" && shouldSkipDirectory(item.path)) {
-//       console.log(`⏭️  Skipping directory: ${item.path}`);
-//       continue;
-//     }
-
-//     if (item.type === "file") {
-//       // Skip excluded files
-//       if (!shouldIncludeFile(item.path)) {
-//         console.log(`⏭️  Skipping file: ${item.path}`);
-//         continue;
-//       }
-
-//       const { data: fileData } = await octokit.rest.repos.getContent({
-//         owner,
-//         repo,
-//         path: item.path,
-//       });
-
-//       // CHECKING
-//       if (
-//         !Array.isArray(fileData) &&
-//         fileData.type === "file" &&
-//         fileData.content
-//       ) {
-//         files.push({
-//           path: item.path,
-//           content: Buffer.from(fileData.content, "base64").toString("utf-8"),
-//         });
-//       }
-//     } else if (item.type === "dir") {
-//       const subFiles = await getRepoFileContents(
-//         owner,
-//         repo,
-//         accessToken,
-//         item.path,
-//       );
-
-//       files = files.concat(subFiles);
-//     }
-//   }
-
-//   return files;
-// }
 
 export async function getRepoFileContents(
   owner: string,
@@ -295,11 +250,11 @@ export async function getRepoFileContents(
   console.log("Token for file contents: ", token);
   const octokit = new Octokit({ auth: token });
 
-  // 🔥 Collect all file paths first (without fetching content)
+  // Collect all file paths first (without fetching content)
   const filePaths = await collectFilePaths(octokit, owner, repo, path);
   console.log(`📁 Found ${filePaths.length} files to fetch`);
 
-  // 🔥 Fetch all file contents in parallel
+  //Fetch all file contents in parallel
   const files = await fetchFileContentsParallel(
     octokit,
     owner,
@@ -332,7 +287,7 @@ async function collectFilePaths(
     return [];
   }
 
-  // 🔥 Process directories in parallel
+  // Process directories in parallel
   const promises = data.map(async (item) => {
     // Skip excluded directories
     if (item.type === "dir" && shouldSkipDirectory(item.path)) {
@@ -369,7 +324,7 @@ async function fetchFileContentsParallel(
   repo: string,
   filePaths: string[],
 ): Promise<{ path: string; content: string }[]> {
-  const BATCH_SIZE = 20; // 🔥 Fetch 20 files at once
+  const BATCH_SIZE = 20; //Fetch 20 files at once
   const files: { path: string; content: string }[] = [];
 
   for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
@@ -431,7 +386,7 @@ function shouldSkipDirectory(path: string): boolean {
     ".turbo",
     ".vercel",
     ".cache",
-    "public/assets", // Large asset folders
+    "public/assets",
     "public/images",
     ".husky",
     ".vscode",

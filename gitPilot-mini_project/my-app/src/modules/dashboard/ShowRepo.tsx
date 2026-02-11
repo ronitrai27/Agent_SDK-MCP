@@ -62,6 +62,9 @@ const ShowRepo = ({
       setIsConnecting(repo.id);
       setSelectedRepo({ owner: repo.owner.login, repo: repo.name });
 
+      //      const webhook = await createWebhook(owner, repo);
+      // if (webhook) {
+      // First connect webhook , if success then store in db otherwise show error !
       // database using Convex mutation
       await connectRepository({
         githubId: BigInt(repo.id) as any,
@@ -72,6 +75,7 @@ const ShowRepo = ({
       });
 
       // Trigger server-side indexing and fetch initial data
+      // This hsould be fire and forgot not await ( Need instant response on ui)
       const res = await ConnectRepo({
         owner: repo.owner.login,
         repo: repo.name,
