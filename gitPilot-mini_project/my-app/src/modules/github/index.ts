@@ -60,7 +60,7 @@ export const getRepoHealthData = async (owner: string, repo: string) => {
   const octokit = new Octokit({ auth: token });
 
   try {
-    console.log("Fetching open issues...");
+    // console.log("Fetching open issues...");
     const { data: openIssuesData } = await octokit.rest.issues.listForRepo({
       owner,
       repo,
@@ -68,9 +68,9 @@ export const getRepoHealthData = async (owner: string, repo: string) => {
       per_page: 1,
     });
     const openIssuesCount = openIssuesData.length;
-    console.log(`Open issues: ${openIssuesCount}`);
+    // console.log(`Open issues: ${openIssuesCount}`);
 
-    console.log("Fetching closed issues...");
+    // console.log("Fetching closed issues...");
     const { data: closedIssuesData } = await octokit.rest.issues.listForRepo({
       owner,
       repo,
@@ -79,19 +79,19 @@ export const getRepoHealthData = async (owner: string, repo: string) => {
     });
 
     const closedIssuesCount = closedIssuesData.length;
-    console.log(`Closed issues: ${closedIssuesCount}`);
-    console.log("Fetching last commit date...");
+    // console.log(`Closed issues: ${closedIssuesCount}`);
+    // console.log("Fetching last commit date...");
     const { data: repoData } = await octokit.rest.repos.get({
       owner,
       repo,
     });
     const lastCommitDate = repoData.pushed_at;
-    console.log(`Last commit date: ${lastCommitDate}`);
+    // console.log(`Last commit date: ${lastCommitDate}`);
 
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
-    console.log("Fetching commits from last 60 days...");
+    // console.log("Fetching commits from last 60 days...");
     const { data: commits } = await octokit.rest.repos.listCommits({
       owner,
       repo,
@@ -99,9 +99,9 @@ export const getRepoHealthData = async (owner: string, repo: string) => {
       per_page: 100,
     });
     const commitsLast60Days = commits.length;
-    console.log(`Commits in last 60 days: ${commitsLast60Days}`);
+    // console.log(`Commits in last 60 days: ${commitsLast60Days}`);
 
-    console.log("🔍 Fetching pull requests...");
+    // console.log("🔍 Fetching pull requests...");
     const { data: allPRs } = await octokit.rest.pulls.list({
       owner,
       repo,
@@ -113,8 +113,8 @@ export const getRepoHealthData = async (owner: string, repo: string) => {
     const mergedPRs = allPRs.filter((pr: any) => pr.merged_at !== null).length;
     const prMergeRate = totalPRs > 0 ? (mergedPRs / totalPRs) * 100 : 0;
 
-    console.log(`Total PRs: ${totalPRs}, Merged: ${mergedPRs}`);
-    console.log(`PR merge rate: ${prMergeRate.toFixed(1)}%`);
+    // console.log(`Total PRs: ${totalPRs}, Merged: ${mergedPRs}`);
+    // console.log(`PR merge rate: ${prMergeRate.toFixed(1)}%`);
 
     return {
       openIssuesCount,
@@ -147,7 +147,7 @@ export const getRepoLanguages = async (owner: string, repo: string) => {
       repo,
     });
 
-    console.log("Raw language data:", languages);
+    // console.log("Raw language data:", languages);
 
     // Calculate total bytes
     const totalBytes = Object.values(languages).reduce(
@@ -165,10 +165,10 @@ export const getRepoLanguages = async (owner: string, repo: string) => {
     // Sort by percentage descending
     languageData.sort((a, b) => b.percentage - a.percentage);
 
-    console.log("Languages with percentages:");
-    languageData.forEach((lang) => {
-      console.log(`   ${lang.name}: ${lang.percentage}%`);
-    });
+    // console.log("Languages with percentages:");
+    // languageData.forEach((lang) => {
+    //   console.log(`   ${lang.name}: ${lang.percentage}%`);
+    // });
 
     return languageData;
   } catch (error) {
@@ -232,6 +232,8 @@ export const createWebhook = async (owner: string, repo: string) => {
     },
     events: ["pull_request", "push", "issues"],
   });
+
+  console.log("Webhook created successfully");
 
   return data;
 };

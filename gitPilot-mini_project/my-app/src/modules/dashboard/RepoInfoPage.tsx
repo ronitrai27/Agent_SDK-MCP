@@ -11,12 +11,14 @@ import {
   Code2,
   CheckCircle2,
   CircleDot,
+  Code,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 const RepoInfoPage = ({
   ownerName,
@@ -53,14 +55,23 @@ const RepoInfoPage = ({
     <div className="h-full w-full flex flex-col gap-6 p-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight text-white flex items-center gap-3">
-          <Globe className="size-8 text-primary" />
-          {repoName}
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-semibold tracking-tight text-white flex items-center gap-3">
+            <Globe className="size-8 text-primary" />
+            {repoName}
           <span className="text-muted-foreground font-normal text-2xl">/</span>
           <span className="text-muted-foreground font-medium text-2xl">
             {ownerName}
           </span>
         </h1>
+
+        <div className="flex items-center gap-6">
+          <Button size="sm">
+            Code Sentinel <Code />
+          </Button>
+          <Button size="sm">PM agent</Button>
+        </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-36">

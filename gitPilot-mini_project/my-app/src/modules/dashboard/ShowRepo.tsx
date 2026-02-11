@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { useRepositories } from "../actions";
+import { createWebhook } from "../github";
 import { cn } from "@/lib/utils";
 import { LucideGitBranch, LucidePlus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -62,10 +63,10 @@ const ShowRepo = ({
       setIsConnecting(repo.id);
       setSelectedRepo({ owner: repo.owner.login, repo: repo.name });
 
-      //      const webhook = await createWebhook(owner, repo);
-      // if (webhook) {
-      // First connect webhook , if success then store in db otherwise show error !
-      // database using Convex mutation
+      // Create Webhook
+      await createWebhook(repo.owner.login, repo.name);
+
+      // Store in DB (Convex)
       await connectRepository({
         githubId: BigInt(repo.id) as any,
         name: repo.name,
@@ -74,21 +75,21 @@ const ShowRepo = ({
         url: repo.html_url,
       });
 
-      // Trigger server-side indexing and fetch initial data
-      // This hsould be fire and forgot not await ( Need instant response on ui)
-      const res = await ConnectRepo({
+      // Show Success immediately
+      toast.success(`Repository ${repo.name} connected successfully!`, {
+        id: toastId,
+      });
+
+      // Fire and forget ConnectRepo (Server-side indexing)
+      ConnectRepo({
         owner: repo.owner.login,
         repo: repo.name,
         githubId: repo.id,
         fullName: repo.full_name,
         url: repo.html_url,
+      }).catch((err) => {
+        console.error("Background indexing failed for:", repo.name, err);
       });
-
-      if (res.success) {
-        toast.success(`Repository ${repo.name} connected successfully!`, {
-          id: toastId,
-        });
-      }
     } catch (err) {
       toast.error("Failed to connect repository", { id: toastId });
       console.error(err);
