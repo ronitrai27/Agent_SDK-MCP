@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   CircleDot,
   Code,
+  LucideLoader,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -19,6 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 const RepoInfoPage = ({
   ownerName,
@@ -27,6 +31,11 @@ const RepoInfoPage = ({
   ownerName?: string;
   repoName?: string;
 }) => {
+  const repoDetails = useQuery(api.repo.getRepoByOwnerAndName, {
+    owner: ownerName || "",
+    name: repoName || "",
+  });
+  const repoId = repoDetails?._id;
   const { data: health, isLoading: loadingHealth } = useRepoHealthData(
     ownerName || "",
     repoName || "",
@@ -59,18 +68,30 @@ const RepoInfoPage = ({
           <h1 className="text-3xl font-semibold tracking-tight text-white flex items-center gap-3">
             <Globe className="size-8 text-primary" />
             {repoName}
-          <span className="text-muted-foreground font-normal text-2xl">/</span>
-          <span className="text-muted-foreground font-medium text-2xl">
-            {ownerName}
-          </span>
-        </h1>
+            <span className="text-muted-foreground font-normal text-2xl">
+              /
+            </span>
+            <span className="text-muted-foreground font-medium text-2xl">
+              {ownerName}
+            </span>
+          </h1>
 
-        <div className="flex items-center gap-6">
-          <Button size="sm">
-            Code Sentinel <Code />
-          </Button>
-          <Button size="sm">PM agent</Button>
-        </div>
+          <div className="flex items-center gap-6">
+            {repoId ? (
+              <Link href={`/dashboard/${repoId}/review`}>
+                <Button size="sm" className="cursor-pointer">
+                  Code Sentinel <Code />
+                </Button>
+              </Link>
+            ) : (
+              <Button size="sm" className="cursor-not-allowed">
+                Loading <LucideLoader className="animate-spin" />
+              </Button>
+            )}
+            <Link href={`/dashboard/${repoId}/pm-agent`}>
+            <Button size="sm" className="cursor-pointer">PM agent</Button>
+            </Link>
+          </div>
         </div>
       </div>
 

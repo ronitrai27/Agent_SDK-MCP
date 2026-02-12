@@ -17,16 +17,6 @@
 //   };
 // };
 
-// // ===========================
-// // GOAL
-
-// // 🔥 parallel embeddings
-// // 🔥 smart chunking
-// // 🔥 skip useless folders automatically
-// // 🔥 handles huge repos without crashing
-
-// // ===============================
-
 // export async function generateEmbedding(text: string): Promise<number[]> {
 //   const { embedding } = await embed({
 //     model: google.embeddingModel("gemini-embedding-001"),
@@ -78,7 +68,6 @@
 //   }
 // }
 
-
 import { pineconeIndex } from "@/lib/pinecone";
 import { embed } from "ai";
 import { google } from "@ai-sdk/google";
@@ -99,14 +88,13 @@ type batch = {
 };
 
 // ========== CONFIG ==========
-const MAX_CHUNK_SIZE = 4000; 
+const MAX_CHUNK_SIZE = 4000;
 const EMBEDDING_CONCURRENCY = 10; // Parallel requests (adjust based on API limits)
 const UPSERT_BATCH_SIZE = 100;
 
 // ========== SMART CHUNKING ==========
 function smartChunk(file: FileItem): string[] {
   const { path, content } = file;
-
 
   // Small files - return as-is
   if (content.length <= MAX_CHUNK_SIZE) {
@@ -142,12 +130,12 @@ function smartChunk(file: FileItem): string[] {
   }
 
   if (currentChunk.trim()) chunks.push(currentChunk.trim());
-  return chunks.slice(0, 3); 
+  return chunks.slice(0, 3);
 }
 
 // ========== PARALLEL EMBEDDING ==========
 async function generateEmbeddingsBatch(
-  texts: string[]
+  texts: string[],
 ): Promise<(number[] | null)[]> {
   const results: (number[] | null)[] = [];
 
@@ -167,13 +155,15 @@ async function generateEmbeddingsBatch(
           console.error("Embedding failed:", error);
           return null;
         }
-      })
+      }),
     );
 
     results.push(...batchResults);
-    
+
     // Progress log
-    console.log(`Embedded ${Math.min(i + EMBEDDING_CONCURRENCY, texts.length)}/${texts.length}`);
+    console.log(
+      `Embedded ${Math.min(i + EMBEDDING_CONCURRENCY, texts.length)}/${texts.length}`,
+    );
   }
 
   return results;
@@ -182,7 +172,7 @@ async function generateEmbeddingsBatch(
 // ========== MAIN INDEXING ==========
 export async function indexCodebase(
   repoId: string,
-  files: FileItem[]
+  files: FileItem[],
 ): Promise<void> {
   console.time("⏱️ Total indexing time");
 
@@ -196,12 +186,14 @@ export async function indexCodebase(
     });
   }
 
-  console.log(`📦 Created ${allChunks.length} chunks from ${files.length} files`);
+  console.log(
+    `📦 Created ${allChunks.length} chunks from ${files.length} files`,
+  );
 
   // Generate embeddings in parallel (KEY SPEEDUP )
   console.log("🚀 Generating embeddings in parallel...");
   const embeddings = await generateEmbeddingsBatch(
-    allChunks.map((c) => c.chunk)
+    allChunks.map((c) => c.chunk),
   );
 
   //  Prepare vectors (filter out failed embeddings)
@@ -228,9 +220,38 @@ export async function indexCodebase(
     for (let i = 0; i < vectors.length; i += UPSERT_BATCH_SIZE) {
       const batch = vectors.slice(i, i + UPSERT_BATCH_SIZE);
       await pineconeIndex.upsert({ records: batch });
-      console.log(`📤 Upserted batch ${Math.floor(i / UPSERT_BATCH_SIZE) + 1}/${Math.ceil(vectors.length / UPSERT_BATCH_SIZE)}`);
+      console.log(
+        `📤 Upserted batch ${Math.floor(i / UPSERT_BATCH_SIZE) + 1}/${Math.ceil(vectors.length / UPSERT_BATCH_SIZE)}`,
+      );
     }
   }
 
   console.timeEnd("⏱️ Total indexing time");
+}
+
+//=========== Generating simple text embedding.===========
+export async function generateEmbedding(text: string): Promise<number[]> {
+  const { embedding } = await embed({
+    model: google.embeddingModel("gemini-embedding-001"),
+    value: text,
+  });
+
+  return embedding;
+}
+
+//=========== Retrieving context from Pinecone.===========
+export async function retrieveContext(query: string, topK: number = 5) {
+  const embeddings = await generateEmbedding(query);
+
+  const result = await pineconeIndex.query({
+    vector: embeddings,
+    topK,
+    includeMetadata: true,
+  });
+
+  console.log("Results found while retrieving context:", result);
+
+  return result.matches
+    .map((match) => match.metadata?.content as string)
+    .filter(Boolean);
 }
