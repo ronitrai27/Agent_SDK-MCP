@@ -52,6 +52,7 @@ const PmPage = () => {
   const params = useParams();
   const [input, setInput] = React.useState("");
   const repoId = params.repoId as Id<"repositories">;
+//   console.log("repo id ", repoId)
 
   const {
     messages,
@@ -66,9 +67,6 @@ const PmPage = () => {
         repoId,
       },
     }),
-    // body: {
-    //   repoId,
-    // },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
 

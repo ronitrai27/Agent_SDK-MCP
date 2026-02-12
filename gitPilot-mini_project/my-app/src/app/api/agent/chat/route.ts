@@ -45,7 +45,7 @@ const localTools = {
     inputSchema: z.object({
       query: z.string().describe("The search query"),
     }),
-    needsApproval: true,
+    // needsApproval: true,
     // @ts-ignore
     execute: async ({ query }: { query: string }) => {
       console.log("query and Mode by AI: ====> ", query);
@@ -101,7 +101,9 @@ export type ChatMessage = UIMessage<never, UIDataTypes, ChatTools>;
 
 export async function POST(req: Request) {
   try {
-    const { messages }: { messages: ChatMessage[] } = await req.json();
+    const { messages, repoId }: { messages: ChatMessage[]; repoId: string } =
+      await req.json();
+    console.log("Repo ID recieved----------------->", repoId);
     console.log("Message recieved API/AGENT/CHAT: --------->", messages);
 
     const systemPrompt = `You are highly professional Agentic Assistant that helps users in their Quiries related to their repositories.
@@ -114,7 +116,8 @@ When the user asks about anyhting realted to tech or any problem related to thei
 Important: 
 - behave super intelligent agentic Assistant
 - call Tools you think is Important
-- be professional and act like a Project Manager.`;
+- be professional and act like a Project Manager.
+-use repoId if u need to call Issues tool ${repoId}`;
 
     const result = streamText({
       model: google("gemini-3-flash-preview"),
