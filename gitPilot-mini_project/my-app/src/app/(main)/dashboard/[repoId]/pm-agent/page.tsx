@@ -62,6 +62,9 @@ const PmPage = () => {
   } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/agent/chat",
+      body: {
+        repoId,
+      },
     }),
     // body: {
     //   repoId,

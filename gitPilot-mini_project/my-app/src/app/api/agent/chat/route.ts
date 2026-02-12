@@ -100,10 +100,11 @@ export type ChatTools = InferUITools<typeof localTools>;
 export type ChatMessage = UIMessage<never, UIDataTypes, ChatTools>;
 
 export async function POST(req: Request) {
-  const { messages }: { messages: ChatMessage[] } = await req.json();
-  console.log("Message recieved API/AGENT/CHAT: --------->", messages);
+  try {
+    const { messages }: { messages: ChatMessage[] } = await req.json();
+    console.log("Message recieved API/AGENT/CHAT: --------->", messages);
 
-  const systemPrompt = `You are highly professional Agentic Assistant that helps users in their Quiries related to their repositories.
+    const systemPrompt = `You are highly professional Agentic Assistant that helps users in their Quiries related to their repositories.
 You can:
 - Get issues for the current repository connected (Number of issues or recent issues).
 - Search the web for user query related to tech etc to get Latest information about it.
@@ -115,18 +116,25 @@ Important:
 - call Tools you think is Important
 - be professional and act like a Project Manager.`;
 
-  const result = streamText({
-    model: google("gemini-3-flash-preview"),
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
-    tools: localTools,
-    toolChoice: "auto",
-    stopWhen: stepCountIs(5),
-    onFinish: async ({ text }) => {
-      // to:do save in db
-      console.log("Ai reponse by Agent Streamed ");
-    },
-  });
+    const result = streamText({
+      model: google("gemini-3-flash-preview"),
+      system: systemPrompt,
+      messages: await convertToModelMessages(messages),
+      tools: localTools,
+      toolChoice: "auto",
+      stopWhen: stepCountIs(5),
+      onFinish: async ({ text }) => {
+        // to:do save in db
+        console.log("Ai reponse by Agent Streamed ");
+      },
+    });
 
-  return result.toUIMessageStream({ sendReasoning: true });
+    return result.toUIMessageStreamResponse({
+      sendReasoning: true,
+      sendSources: true,
+    });
+  } catch (error) {
+    console.error("Error in chat route:", error);
+    return new Response("Internal Server Error", { status: 500 });
+  }
 }
