@@ -731,9 +731,11 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { inngest } from "@/inngest/client";
 
-
 export async function handlePushEvent(payload: any) {
-  const { repository, commits, pusher } = payload;
+  const { repository, commits, pusher, sender } = payload;
+  console.log("Sender and pusher============================>", sender, pusher);
+  const avatarUrl = sender.avatar_url;
+  console.log("avatar_URL---------->", avatarUrl);
   const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
   // 1. Get Repo & User
