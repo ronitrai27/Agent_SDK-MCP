@@ -88,7 +88,9 @@ const RepoInfoPage = ({
                 Loading <LucideLoader className="animate-spin" />
               </Button>
             )}
+            <Link href={`/dashboard/${repoId}/pm-agent`}>
             <Button size="sm" className="cursor-pointer">PM agent</Button>
+            </Link>
           </div>
         </div>
       </div>

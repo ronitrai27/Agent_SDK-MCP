@@ -215,3 +215,35 @@ export const getIssuesByRepoId = query({
       .collect();
   },
 });
+
+
+// TOOL USED BY AGENT TO GET RECENT ISSUE OR NUMBER OF ISSUE
+export const getIssueTool = query({
+  args: {
+    repoId: v.id("repositories"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const takeCount = args.limit && args.limit > 0 ? args.limit : 1;
+
+    const issues = await ctx.db
+      .query("issues")
+      .withIndex("by_repo", (q) => q.eq("repoId", args.repoId))
+      .order("desc")
+      .take(takeCount);
+
+    if (!issues || issues.length === 0) {
+      return {
+        success: false,
+        message: "No issues found",
+        data: [],
+      };
+    }
+
+    return {
+      success: true,
+      data: issues,
+    };
+  },
+});
+
