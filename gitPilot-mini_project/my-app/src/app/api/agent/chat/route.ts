@@ -1,5 +1,11 @@
 import { ConvexHttpClient } from "convex/browser";
-import { stepCountIs, streamText, tool } from "ai";
+import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
+import {
+  type InferUITools,
+  type ToolSet,
+  type UIDataTypes,
+  type UIMessage,
+} from "ai";
 import { z } from "zod";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -23,6 +29,7 @@ const localTools = {
       repoId: Id<"repositories">;
       limit: number;
     }) => {
+      console.log("----------Called issues tool----------", repoId, limit);
       const allIssues = await convex.query(api.repo.getIssueTool, {
         repoId,
         limit,
@@ -44,7 +51,7 @@ const localTools = {
       console.log("query and Mode by AI: ====> ", query);
       const apiKey = process.env.FIRECRAWL_API_KEY;
       if (!apiKey) throw new Error("FIRECRAWL_API_KEY is not set");
-      const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      const res = await fetch("https://api.firecrawl.dev/v1/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -76,17 +83,27 @@ const localTools = {
       subject: string;
       body: string;
     }) => {
+      console.log(
+        "----------Called sendEmail tool----------",
+        to,
+        subject,
+        body,
+      );
       const result = await sendEmail({ to, subject, body });
       return result;
     },
   }),
-};
+} satisfies ToolSet;
+
+export type ChatTools = InferUITools<typeof localTools>;
+
+export type ChatMessage = UIMessage<never, UIDataTypes, ChatTools>;
 
 export async function POST(req: Request) {
-  const { userId, messages } = await req.json();
-  console.log("Message recieved: --------->", messages);
+  const { messages }: { messages: ChatMessage[] } = await req.json();
+  console.log("Message recieved API/AGENT/CHAT: --------->", messages);
 
-  const systemPrompt = `You are highly professioanl Agentic Assistant that helps users in their Quiries related to their repositories.
+  const systemPrompt = `You are highly professional Agentic Assistant that helps users in their Quiries related to their repositories.
 You can:
 - Get issues for the current repository connected (Number of issues or recent issues).
 - Search the web for user query related to tech etc to get Latest information about it.
@@ -101,13 +118,13 @@ Important:
   const result = streamText({
     model: google("gemini-3-flash-preview"),
     system: systemPrompt,
-    messages,
+    messages: await convertToModelMessages(messages),
     tools: localTools,
     toolChoice: "auto",
     stopWhen: stepCountIs(5),
     onFinish: async ({ text }) => {
       // to:do save in db
-      console.log("Ai reponse by Agent: ====> ", text);
+      console.log("Ai reponse by Agent Streamed ");
     },
   });
 
