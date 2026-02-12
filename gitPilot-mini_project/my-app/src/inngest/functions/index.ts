@@ -4,6 +4,7 @@ import { indexCodebase } from "@/modules/pinecone";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 export * from "./commit";
+export * from "./review";
 
 export const indexRepo = inngest.createFunction(
   { id: "index-repo" },

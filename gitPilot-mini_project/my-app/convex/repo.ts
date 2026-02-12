@@ -130,10 +130,11 @@ export const createReview = mutation({
     repoId: v.id("repositories"),
     prOrCommitTitle: v.string(),
     prOrCommitUrl: v.optional(v.string()),
-    commitHash: v.string(),
+    commitHash: v.optional(v.string()),
+    prNumber: v.optional(v.number()),
     authorUserName: v.string(),
-    reviewType: v.literal("commit"),
-    reviewStatus: v.literal("pending"),
+    reviewType: v.union(v.literal("pr"), v.literal("commit")),
+    reviewStatus: v.union(v.literal("pending"), v.literal("completed")),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("reviews", {
@@ -141,6 +142,7 @@ export const createReview = mutation({
       prOrCommitTitle: args.prOrCommitTitle,
       prOrCommitUrl: args.prOrCommitUrl,
       commitHash: args.commitHash,
+      prNumber: args.prNumber,
       authorUserName: args.authorUserName,
       reviewType: args.reviewType,
       reviewStatus: args.reviewStatus, // pending

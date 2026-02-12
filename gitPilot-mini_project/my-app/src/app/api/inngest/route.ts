@@ -1,8 +1,8 @@
 import { serve } from "inngest/next";
 import { inngest } from "../../../inngest/client";
-import { indexRepo, handleCommitReview } from "@/inngest/functions";
+import { indexRepo, handleCommitReview, handlePrReview } from "@/inngest/functions";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [indexRepo, handleCommitReview],
+  functions: [indexRepo, handleCommitReview, handlePrReview],
 });

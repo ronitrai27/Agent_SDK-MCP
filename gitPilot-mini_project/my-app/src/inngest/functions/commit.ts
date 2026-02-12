@@ -142,6 +142,8 @@ ${issue.fix}`;
       }
     });
 
+    // Next step to:do send email if found critical issue!
+
     return {
       success: true,
       reviewId,

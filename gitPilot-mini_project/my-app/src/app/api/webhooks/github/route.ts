@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handlePushEvent } from "@/modules/github";
+import { HandlePrEvent } from "@/modules/dashboard";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,11 +16,6 @@ export async function POST(req: NextRequest) {
     // ===============================
     if (event === "push") {
       console.log("============Pushed Event Triggered !============");
-      // await handlePushEvent(body);
-      // return NextResponse.json(
-      //   { message: "Push Event Processed" },
-      //   { status: 200 },
-      // );
       handlePushEvent(body)
         .then(() => console.log(`✅ Push Event Processed`))
         .catch((err: any) => console.error(`❌ Error:`, err));
@@ -55,11 +51,31 @@ export async function POST(req: NextRequest) {
       const action = body.action;
       const repo = body.repository.full_name;
       const prNumber = body.number;
-
+      const prTitle = body.title;
+      const prUrl = body.html_url;
+      const author = body.user.login;
+      console.log("PR event received:", {
+        action,
+        prNumber,
+        title: prTitle,
+        author,
+        prUrl,
+        repo,
+      });
       const [owner, repoName] = repo.split("/");
 
       if (action === "opened") {
-        console.log("🤖 Triggering AI review for new PR...");
+        console.log("Triggering AI review for new PR...");
+         HandlePrEvent({owner, repoName, prNumber, prTitle, prUrl, author})
+          .then(() =>
+            console.log(`✅ Reviewed pull request #${prNumber} in ${repo}`)
+          )
+          .catch((err: any) =>
+            console.error(
+              `❌ Error reviewing PR #${prNumber} and repo ${repo}:`,
+              err
+            )
+          );
       }
     }
     return NextResponse.json({ message: "Event Processed" }, { status: 200 });

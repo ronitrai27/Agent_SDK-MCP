@@ -1,8 +1,13 @@
-"use server"
+"use server";
 import { inngest } from "@/inngest/client";
 import { auth } from "@clerk/nextjs/server";
-import { getRepoHealthData, getRepoLanguages } from "../github";
-
+import {
+  getRepoHealthData,
+  getRepoLanguages,
+  getUserGithubToken,
+} from "../github";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../convex/_generated/api";
 
 export const ConnectRepo = async (details: {
   owner: string;
@@ -117,3 +122,89 @@ export const ConnectRepo = async (details: {
 //   //   },
 //   // });
 // }
+
+export const HandlePrEvent = async ({
+  owner,
+  repoName,
+  prNumber,
+  prTitle,
+  prUrl,
+  author,
+}: {
+  owner: string;
+  repoName: string;
+  prNumber: any;
+  prTitle: string;
+  prUrl: string;
+  author: string;
+}) => {
+  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+  try {
+    console.log("Fetching repo data");
+    const repoData = await convex.query(api.repo.getRepoByOwnerAndName, {
+      owner,
+      name: repoName,
+    });
+    console.log("Repo data fetched:", repoData);
+
+    if (!repoData) {
+      console.log("Repository not found in database:", owner + "/" + repoName);
+      return { message: "Repository not found", status: "skipped" };
+    }
+
+    const userData = await convex.query(api.users.getUser, {
+      userId: repoData.userId,
+    });
+
+    if (!userData) {
+      console.log("User not found for repo:", repoData.repoName);
+      return { message: "User not found", status: "skipped" };
+    }
+    // Check limits
+    if (userData.aiLimits && userData.aiLimits.pr >= 5) {
+      console.log("Usage limit exceeded for user", userData.userName);
+      return { message: "Usage limit exceeded", status: "skipped" };
+    }
+    // Get GitHub token using clerkUserId from database
+    if (!userData.clerkUserId) {
+      console.error("Clerk User ID not found for user:", userData.userName);
+      return { message: "Clerk User ID not found", status: "failed" };
+    }
+
+    const token = await getUserGithubToken(userData.clerkUserId);
+
+    if (!token) {
+      console.error("GitHub token not found for user:", userData.userName);
+      return { message: "GitHub token not found", status: "failed" };
+    }
+    console.log("Token found for user:", userData.userName);
+
+    // now call the inngest function here and it will further call prdiff etc
+    console.log("Limit passed for the user. !!!");
+    // creating review in db
+     const reviewId = await convex.mutation(api.repo.createReview, {
+      repoId: repoData._id,
+      prOrCommitTitle: prTitle,
+      prOrCommitUrl: prUrl,
+      prNumber: prNumber,
+      authorUserName: author,
+      reviewType: "pr",
+      reviewStatus: "pending",
+    });
+    console.log("Review created:", reviewId);
+    await inngest.send({
+      name: "pr/analyse",
+      data: {
+        reviewId,
+        repoId: repoData._id,
+        prNumber,
+        owner,
+        repoName,
+        token,
+        userId: userData.clerkUserId,
+      },
+    });
+  } catch (e) {
+    console.log("error==========>", e);
+  }
+};
