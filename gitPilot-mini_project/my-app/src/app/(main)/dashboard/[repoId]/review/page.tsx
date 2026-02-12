@@ -10,7 +10,8 @@ import {
   MessageContent,
   MessageResponse,
 } from "@/components/ai-elements/message";
-
+import { Button } from "@/components/ui/button";
+import { AlertCircle, LucideCross, LucideUser2 } from "lucide-react";
 
 type Review = Doc<"reviews">;
 type Issue = Doc<"issues">;
@@ -53,8 +54,8 @@ const ReviewPage = () => {
 
       {/* Reviews Section */}
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
-          Reviews ({reviews.length})
+        <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+          Reviews 
         </h2>
         {reviews.length === 0 ? (
           <div className="bg-accent  rounded-lg p-8 text-center">
@@ -68,16 +69,13 @@ const ReviewPage = () => {
         ) : (
           <div className="space-y-4">
             {reviews.map((review) => (
-              <div
-                key={review._id}
-                className="border p-4 rounded-lg"
-              >
+              <div key={review._id} className="border p-4 rounded-lg">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-lg">
+                  <h3 className="font-medium text-base">
                     {review.prOrCommitTitle}
                   </h3>
                   <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
                       review.reviewStatus === "completed"
                         ? "bg-green-100 text-green-800"
                         : review.reviewStatus === "failed"
@@ -96,24 +94,11 @@ const ReviewPage = () => {
                   </p>
                   {review.authorUserName && (
                     <p>
-                      <span className="font-medium">Author:</span>{" "}
+                      <span className="font-medium">Commit By:</span>{" "}
                       {review.authorUserName}
                     </p>
                   )}
-                  {review.commitHash && (
-                    <p>
-                      <span className="font-medium">Commit:</span>{" "}
-                      <code className="bg-gray-100 px-2 py-1 rounded">
-                        {review.commitHash.substring(0, 7)}
-                      </code>
-                    </p>
-                  )}
-                  {review.prNumber && (
-                    <p>
-                      <span className="font-medium">PR Number:</span> #
-                      {review.prNumber}
-                    </p>
-                  )}
+                
                   {review.prOrCommitUrl && (
                     <p>
                       <a
@@ -121,7 +106,7 @@ const ReviewPage = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline"
-                      >
+                      > 
                         View on GitHub →
                       </a>
                     </p>
@@ -129,21 +114,30 @@ const ReviewPage = () => {
                 </div>
 
                 {review.ctiticalIssueFound && (
-                  <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded">
-                    <p className="text-red-800 font-medium text-sm">
-                      ⚠️ Critical issues found
-                    </p>
+                  <div>
+                    <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded">
+                      <p className="text-red-800 font-medium text-sm">
+                         Critical issues found <AlertCircle className="inline size-5" />
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-8 justify-start my-4">
+                      <Button size="sm">
+                        Assign <LucideUser2 />
+                      </Button>
+                      <Button size="sm">
+                        Ignore <LucideCross />
+                      </Button>
+                    </div>
                   </div>
                 )}
 
                 {review.review && (
-                 
-
-                   <Message from="assistant" className="mb-4">
-                  <MessageContent>
-                    <MessageResponse>{review.review}</MessageResponse>
-                  </MessageContent>
-                </Message>
+                  <Message from="assistant" className="mb-4">
+                    <MessageContent>
+                      <MessageResponse>{review.review}</MessageResponse>
+                    </MessageContent>
+                  </Message>
                 )}
 
                 <div className="mt-3 text-xs text-gray-400">

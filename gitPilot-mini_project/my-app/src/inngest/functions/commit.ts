@@ -1,94 +1,45 @@
 import { inngest } from "@/inngest/client";
-import { generateText, generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
+import { z } from "zod";
 
-// export const handleCommitReview = inngest.createFunction(
-//   { id: "handle-commit-review" },
-//   { event: "commit/analyze" },
-//   async ({ event, step }) => {
-//     const { reviewId, commitDetails, repoId } = event.data;
-//     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-//     // Generate AI Review
-//     const reviewContent = await step.run("generate-ai-review", async () => {
-//       // Construct prompt with file content
-//       const fileContext = commitDetails.files
-//         .map(
-//           (file: any) => `
-// File: ${file.filename}
-// Status: ${file.status}
-// Patch: ${file.patch || "N/A"}
-// Content:
-// ${file.content ? file.content.slice(0, 10000) : "Content too large or unavailable"}
-//              `
-//         )
-//         .join("\n\n");
-
-//       const prompt = `You are an expert code reviewer. Analyze the following Commit and provide a detailed, constructive code review along with critical issue if found in strucutred format.
-
-// Commit Description: ${commitDetails.message || "No description provided"}
-
-// File Contents:
-// ${fileContext}
-
-// Please provide:
-// 1. **Walkthrough**: A file-by-file explanation of the changes.
-// 2. **Summary**: Brief overview.
-// 3. **Suggestions**: Specific code improvements.
-// 4. **Critical Issues**: Bugs, security concerns, only if exist in structured format.
-
-// Format your response in markdown.`;
-
-//       // Call AI
-//       const { text } = await generateText({
-//         model: google("gemini-2.5-flash"),
-//         prompt: prompt,
-//       });
-
-//       return text;
-//     });
-
-//     // Update Review with AI response
-//     await step.run("update-review", async () => {
-//       const isCritical = reviewContent
-//         .toLowerCase()
-//         .includes("critical issue");
-
-//       await convex.mutation(api.repo.updateReview, {
-//         reviewId,
-//         review: reviewContent,
-//         reviewStatus: "completed",
-//         ctiticalIssueFound: isCritical,
-//       });
-
-//       if (isCritical) {
-//         // create issue
-//         await convex.mutation(api.repo.createIssue, {
-//           repoId: repoId,
-//           issueTitle: `In ${commitDetails.sha.substring(0, 7)}: Critical Issue`,
-//           issueDescription: reviewContent, // Summary might be better but full review is safer
-//           issueStatus: "pending",
-//         });
-//       }
-//     });
-
-//     return { success: true };
-//   }
-// );
-// -------------------------------------------------------------------
+const ReviewSchema = z.object({
+  summary: z.string().describe("2-3 sentence overview of changes"),
+  walkthrough: z.array(
+    z.object({
+      filename: z.string(),
+      changes: z
+        .string()
+        .describe("Brief explanation of what changed in concise manner."),
+    }),
+  ),
+  criticalIssue: z
+    .object({
+      title: z.string(),
+      file: z.string(),
+      line: z.number().optional(),
+      description: z.string(),
+      fix: z.string(),
+    })
+    .optional()
+    .describe(
+      "Only the most critical issue if found, otherwise undefined (eg - code syntax error , major bug , APi keys in code etc)",
+    ),
+});
 
 export const handleCommitReview = inngest.createFunction(
   { id: "handle-commit-review" },
   { event: "commit/analyze" },
   async ({ event, step }) => {
     const { reviewId, commitDetails, repoId } = event.data;
+    console.log("commit details: ", commitDetails);
+    console.log("commit details author: ", commitDetails.author.name);
     const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
     // Step 1: Generate AI Review
     const reviewContent = await step.run("generate-ai-review", async () => {
-      // Build file context from commit (limit content to prevent token overflow)
       const fileContext = commitDetails.files
         .map(
           (file: any) => `
@@ -109,68 +60,83 @@ ${file.content ? file.content.slice(0, 4000) : "Content unavailable or too large
         )
         .join("\n---\n");
 
-      const prompt = `You are an expert code reviewer. Analyze this commit and provide a detailed, constructive review.
+      const { output } = await generateText({
+        model: google("gemini-2.5-flash"),
+        output: Output.object({
+          schema: z.object({
+            review: ReviewSchema,
+          }),
+        }),
+        prompt: `You are an expert code reviewer. Analyze this commit and provide a concise review in MARKDOWN format.
 
 **Commit Message**: ${commitDetails.message || "No message"}
-**Author**: ${commitDetails.author?.name || "Unknown"}
 
 ${fileContext}
 
-Provide your review in the following markdown format:
-
-## Summary
-Brief 2-3 sentence overview of what changed and why.
-
-## Walkthrough
-File-by-file explanation of changes with context.
-
-## Suggestions
-Specific, actionable code improvements (if any).
-
-## Critical Issues
-**IMPORTANT**: Only include this section if you find actual bugs, security vulnerabilities, or breaking changes.
-If found, format each as:
-- **[CRITICAL]** Issue title
-  - **File**: filename
-  - **Line**: approximate line number
-  - **Impact**: what could go wrong
-  - **Fix**: how to resolve it
-
-If no critical issues exist, write: "None found."`;
-
-      const { text } = await generateText({
-        model: google("gemini-2.5-flash"),
-        prompt: prompt,
+Provide:
+1. **summary**: Brief 2-3 sentence overview of what changed and why
+2. **walkthrough**: Array of file-by-file explanations with context (keep it short)
+3. **criticalIssue**: ONLY the most important BUG (or other major bugs), security vulnerability, or breaking change
+   - Only include if there's a MAJOR issue that needs immediate attention (eg - code syntax error , major bug , APi keys in code etc)
+   - Ignore minor issues, style problems, or suggestions
+   - Leave undefined if no critical issue exists
+   - Must have: title, file, line (optional), description, and fix
+   - Must be respond in markdown format`,
       });
 
-      return text;
+      return output.review;
     });
 
     // Step 2: Update review in database and handle critical issues
     await step.run("update-review", async () => {
-      // More robust detection: check for critical section with actual issues
-      const hasCriticalSection = reviewContent.includes("## Critical Issues");
-      const hasActualIssues =
-        hasCriticalSection &&
-        !reviewContent.toLowerCase().includes("none found") &&
-        reviewContent.includes("[CRITICAL]");
+      const hasActualIssue = reviewContent.criticalIssue !== undefined;
 
-      // Update the review record
-      await convex.mutation(api.repo.updateReview, {
-        reviewId,
-        review: reviewContent,
-        reviewStatus: "completed",
-        ctiticalIssueFound: hasActualIssues, // Fixed typo: ctitical -> critical
+      // Format review as markdown
+      let markdownReview = `## Summary\n${reviewContent.summary}\n\n`;
+
+      markdownReview += `## Walkthrough\n`;
+      reviewContent.walkthrough.forEach((w) => {
+        markdownReview += `### ${w.filename}\n${w.changes}\n\n`;
       });
 
-      // Create issue ticket if critical problems found
-      if (hasActualIssues) {
+      markdownReview += `## Critical Issue\n`;
+      if (!hasActualIssue) {
+        markdownReview += `None found.\n`;
+      } else {
+        const issue = reviewContent.criticalIssue!;
+        markdownReview += `**${issue.title}**\n\n`;
+        markdownReview += `- **File**: ${issue.file}\n`;
+        if (issue.line) markdownReview += `- **Line**: ${issue.line}\n`;
+        markdownReview += `- **Description**: ${issue.description}\n`;
+        markdownReview += `- **Fix**: ${issue.fix}\n`;
+      }
+
+      await convex.mutation(api.repo.updateReview, {
+        reviewId,
+        review: markdownReview,
+        reviewStatus: "completed",
+        ctiticalIssueFound: hasActualIssue,
+      });
+
+      if (hasActualIssue) {
         const shortSha = commitDetails.sha.substring(0, 7);
+        const issue = reviewContent.criticalIssue!;
+
+        const issueMarkdown = `# ${issue.title}
+
+**File**: ${issue.file}
+${issue.line ? `**Line**: ${issue.line}` : ""}
+
+## Description
+${issue.description}
+
+## Fix
+${issue.fix}`;
 
         await convex.mutation(api.repo.createIssue, {
           repoId: repoId,
-          issueTitle: `🚨 Critical issues found in ${shortSha}`,
-          issueDescription: reviewContent,
+          issueTitle: `Critical issue in ${shortSha}: ${issue.title}`,
+          issueDescription: issueMarkdown,
           issueStatus: "pending",
         });
       }
@@ -179,7 +145,6 @@ If no critical issues exist, write: "None found."`;
     return {
       success: true,
       reviewId,
-      criticalIssuesFound: reviewContent.includes("[CRITICAL]"),
     };
   },
 );

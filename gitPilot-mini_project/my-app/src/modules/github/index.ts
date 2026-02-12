@@ -791,7 +791,7 @@ export async function handlePushEvent(payload: any) {
       repository.name,
       commit.id,
     );
-    console.log("Commit details fetched:", commitDetails);
+    // console.log("Commit details fetched:", commitDetails);
 
     // 3. Create initial review record (pending)
     const reviewId = await convex.mutation(api.repo.createReview, {
@@ -815,6 +815,11 @@ export async function handlePushEvent(payload: any) {
         repoId: repoData._id,
       },
     });
+
+    // Increment usage limit
+    // await convex.mutation(api.users.incrementCommitCount, {
+    //   userId: userData._id,
+    // });
 
     results.push({ commit: commit.id, status: "queued" });
   }
