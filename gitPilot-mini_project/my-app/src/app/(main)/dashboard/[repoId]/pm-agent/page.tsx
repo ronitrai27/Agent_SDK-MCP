@@ -47,12 +47,20 @@ import {
 } from "ai";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { OrbDemo } from "./OrbUse";
 
 const PmPage = () => {
   const params = useParams();
   const [input, setInput] = React.useState("");
+  const [isOrbOpen, setIsOrbOpen] = React.useState(false);
   const repoId = params.repoId as Id<"repositories">;
-//   console.log("repo id ", repoId)
 
   const {
     messages,
@@ -230,7 +238,7 @@ const PmPage = () => {
         </ConversationContent>
       </Conversation>
 
-      <div className="mt-auto relative my-5 border-t p-4">
+      <div className="mt-auto relative my-5 border-t p-4 max-w-[600px] mx-auto w-full">
         <Textarea
           className="resize-none h-18 p-1 bg-primary-foreground focus:outline-none focus:ring-0 shadow-sm"
           placeholder="Create  saas landing page..."
@@ -253,6 +261,28 @@ const PmPage = () => {
           <LucideBrain />
         </Button>
       </div>
+
+      <Dialog open={isOrbOpen} onOpenChange={setIsOrbOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Orb AI </DialogTitle>
+          </DialogHeader>
+
+          {/* 👉 Your Orb UI here */}
+          <div className=" flex items-center justify-center">
+            <OrbDemo />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ABSOLUTE BUTTON TO OPEN DIALOG FOR ORB ! */}
+      <Button
+        className="absolute bottom-2 right-5 text-[10px] py-2! px-5! rounded-full"
+        size="sm"
+        onClick={() => setIsOrbOpen(!isOrbOpen)}
+      >
+        Talk to AI <LucideBrain />
+      </Button>
     </div>
   );
 };
