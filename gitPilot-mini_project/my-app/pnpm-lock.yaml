@@ -20,6 +20,9 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.85
         version: 3.0.85(react@19.2.3)(zod@4.3.6)
+      '@arcadeai/arcadejs':
+        specifier: ^2.2.0
+        version: 2.2.0
       '@base-ui/react':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@19.2.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -280,6 +283,10 @@ packages:
 
   '@antfu/ni@25.0.0':
     resolution: {integrity: sha512-9q/yCljni37pkMr4sPrI3G4jqdIk074+iukc5aFJl7kmDCCsiJrbZ6zKxnES1Gwg+i9RcDZwvktl23puGslmvA==}
+    hasBin: true
+
+  '@arcadeai/arcadejs@2.2.0':
+    resolution: {integrity: sha512-UHtOAdioiO7nGAOcFZo9sSiiFPCBjZcJDWcnyOq6z4lvZX7jqpCEHBDOfp/KHkLGwCEedycUAsRbYp+9McQtpA==}
     hasBin: true
 
   '@babel/code-frame@7.29.0':
@@ -6079,6 +6086,8 @@ snapshots:
       fzf: 0.5.2
       package-manager-detector: 1.6.0
       tinyexec: 1.0.2
+
+  '@arcadeai/arcadejs@2.2.0': {}
 
   '@babel/code-frame@7.29.0':
     dependencies:
