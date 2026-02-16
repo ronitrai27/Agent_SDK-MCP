@@ -4,6 +4,18 @@ import {
   executeOrAuthorizeZodTool,
 } from "@arcadeai/arcadejs/lib/index";
 
+//  shared utility file
+// src/lib/arcade-tools.ts
+//  containing:
+
+// getArcadeTools()
+//  function
+// stripNullValues()
+//  helper
+// toVercelTools()
+//  adapter
+// The Google Docs config
+
 // ================================================================
 // =================GOOGLE DOCS TOOLKIT============================
 // ================================================================
