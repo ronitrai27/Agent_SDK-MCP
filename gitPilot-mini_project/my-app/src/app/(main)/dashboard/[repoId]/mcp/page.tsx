@@ -54,13 +54,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { OrbDemo } from "./OrbUse";
 
-const PmPage = () => {
+const McpPage = () => {
   const params = useParams();
   const [input, setInput] = React.useState("");
-  const [isOrbOpen, setIsOrbOpen] = React.useState(false);
-  const repoId = params.repoId as Id<"repositories">;
 
   const {
     messages,
@@ -70,10 +67,7 @@ const PmPage = () => {
     addToolApprovalResponse,
   } = useChat({
     transport: new DefaultChatTransport({
-      api: "/api/agent/chat",
-      body: {
-        repoId,
-      },
+      api: "/api/agent/mcp",
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
@@ -98,7 +92,7 @@ const PmPage = () => {
             <ConversationEmptyState
               icon={<MessageSquare className="size-12" />}
               title="Start a conversation"
-              description="Ask any question! from your PM"
+              description="Ask any question! from your MCP AGENT"
             />
           ) : (
             <>
@@ -262,29 +256,9 @@ const PmPage = () => {
         </Button>
       </div>
 
-      <Dialog open={isOrbOpen} onOpenChange={setIsOrbOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Orb AI </DialogTitle>
-          </DialogHeader>
-
-          {/* 👉 Your Orb UI here */}
-          <div className=" flex items-center justify-center">
-            <OrbDemo />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ABSOLUTE BUTTON TO OPEN DIALOG FOR ORB ! */}
-      <Button
-        className="absolute bottom-2 right-5 text-[10px] py-2! px-5! rounded-full"
-        size="sm"
-        onClick={() => setIsOrbOpen(!isOrbOpen)}
-      >
-        Talk to AI <LucideBrain />
-      </Button>
+    
     </div>
   );
 };
 
-export default PmPage;
+export default McpPage;

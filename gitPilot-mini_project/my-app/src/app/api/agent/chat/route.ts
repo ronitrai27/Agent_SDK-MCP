@@ -11,6 +11,8 @@ import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { sendEmail } from "@/lib/mail";
 import { google } from "@ai-sdk/google";
+import { getArcadeTools } from "@/lib/arcade-tools";
+
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -105,12 +107,16 @@ export async function POST(req: Request) {
       await req.json();
     console.log("Repo ID recieved----------------->", repoId);
     console.log("Message recieved API/AGENT/CHAT: --------->", messages);
+    const userId = process.env.ARCADE_USER_ID || "default-user";
+    const mcpTools = await getArcadeTools(userId);
+    const allTools = { ...localTools, ...mcpTools };
 
     const systemPrompt = `You are highly professional Agentic Assistant that helps users in their Quiries related to their repositories.
 You can:
 - Get issues for the current repository connected (Number of issues or recent issues).
 - Search the web for user query related to tech etc to get Latest information about it.
 - Send an email to the user with the given subject and body.
+- Use Arcade MCP tools to read/write in Google Docs.
 
 When the user asks about anyhting realted to tech or any problem related to their project or repo , help them.
 Important: 
@@ -123,7 +129,8 @@ Important:
       model: google("gemini-3-flash-preview"),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
-      tools: localTools,
+      // tools: localTools,
+      tools: allTools,
       toolChoice: "auto",
       stopWhen: stepCountIs(5),
       onFinish: async ({ text }) => {
